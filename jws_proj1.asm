@@ -28,8 +28,8 @@
 	
 	# Snake Attributes
 	snake_dir: .word DIR_N 				# the direction the snake is facing (# Directions)
-	snake_len: .word 2 					# snake length in segments
-	snake_x: .byte 0 : SNAKE_MAX_LEN
+	snake_len: .word 2 					# snake length in grid cells
+	snake_x: .byte 0 : SNAKE_MAX_LEN 	# arrays of coordinates of snake segments
 	snake_y: .byte 0 : SNAKE_MAX_LEN
 	snake_move_timer: .word 0 			# pause before move
 	snake_dir_changed: .word 0 			# 1 if the snake changed direction since last move
@@ -279,7 +279,26 @@ leave
 
 draw_snake:
 enter
-	# TODO
+	move s0, zero # i
+	_for: # i < snake_len
+		lw t0, snake_len
+		bge s0, t0, _break
+
+		# a0 = snake_x[s0] * grid_cell_size
+		lb a0, snake_x(s0)
+		mul a0, a0, GRID_CELL_SIZE
+
+		# a1 = snake_y[s0] * grid_cell_size
+		lb a1, snake_y(s0)
+		mul a1, a1, GRID_CELL_SIZE
+
+		la a2, tex_snake_segment
+
+		jal display_blit_5x5_trans # blit segment
+
+		add s0, s0, 1 # s0++
+		j _for
+	_break:
 leave
 
 # ------------------------------------------------------------------------------------------------
@@ -294,7 +313,7 @@ enter
 
 	# texture
 	la a2, tex_apple
-	
+
 	jal display_blit_5x5_trans
 leave
 
