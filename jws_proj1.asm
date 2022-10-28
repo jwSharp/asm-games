@@ -286,7 +286,16 @@ leave
 
 draw_apple:
 enter
-	# TODO
+	# apple coordinates
+	lw t0, apple_x
+	mul a0, t0, GRID_CELL_SIZE
+	lw t0 apple_y
+	mul a1, t0, GRID_CELL_SIZE
+
+	# texture
+	la a2, tex_apple
+	
+	jal display_blit_5x5_trans
 leave
 
 # ------------------------------------------------------------------------------------------------
