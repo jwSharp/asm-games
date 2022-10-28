@@ -1,0 +1,1 @@
+In order to run the game, use the version of Mars in the .jar file provided.
