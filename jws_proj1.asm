@@ -20,6 +20,9 @@
 # Apples
 .eqv APPLES_NEEDED 20 # apples to win
 
+# Sizes
+.eqv WORD_SIZE 4
+
 # ------------------------------------------------------------------------------------------------
 
 .data
@@ -187,14 +190,18 @@ leave
 
 update_snake:
 enter
-	# TODO
+	jal move_snake
 leave
 
 # ------------------------------------------------------------------------------------------------
 
 move_snake:
 enter
-	# TODO
+	jal compute_next_snake_pos
+
+	# store new coordinates
+	sb v0, snake_x
+	sb v1, snake_y
 leave
 
 # ------------------------------------------------------------------------------------------------
@@ -282,7 +289,7 @@ enter
 	move s0, zero # i
 	_for: # i < snake_len
 		lw t0, snake_len
-		bge s0, t0, _break
+		bge s0, t0, _break_for
 
 		# a0 = snake_x[s0] * grid_cell_size
 		lb a0, snake_x(s0)
@@ -292,13 +299,25 @@ enter
 		lb a1, snake_y(s0)
 		mul a1, a1, GRID_CELL_SIZE
 
-		la a2, tex_snake_segment
+		# check if head of snake  TODO
+		bne s0, zero, _else # s0 == 0
+			# a0 = tex_snake_head[snake_dir]
+			lw t0, snake_dir
+			mul t0, t0, WORD_SIZE
+			mul t0, t0, WORD_SIZE
+			la a2, tex_snake_head
+			add a2, a2, t0
 
+		_else:
+			la a2, tex_snake_segment
+		
+		_break_if:
+		
 		jal display_blit_5x5_trans # blit segment
 
 		add s0, s0, 1 # s0++
 		j _for
-	_break:
+	_break_for:
 leave
 
 # ------------------------------------------------------------------------------------------------
