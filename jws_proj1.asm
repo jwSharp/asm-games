@@ -181,9 +181,13 @@ leave
 # checks for the arrow keys to change the snake's direction.
 check_input:
 enter
-	jal input_get_keys_held
+	# only check once per update TODO***********************************************
+	lw t0, snake_dir_changed
+	bne t0, 0, _break
 
 	# determine which key was pressed
+	jal input_get_keys_held
+
 	lw t0, snake_dir
 
 	beq v0, KEY_U, _north
@@ -203,8 +207,6 @@ enter
 		j _new_dir
 
 	_south:
-		lw t0, snake_dir
-
 		# invalid moves
 		beq t0, DIR_S, _break # already facing south
 		beq t0, DIR_N, _break # facing opposite direction, illegal
@@ -257,12 +259,10 @@ enter
 	_else:
 		# reset
 		li t0, SNAKE_MOVE_DELAY
-		la t1, snake_move_timer
-		sw t0, (t1)
+		sw t0, snake_move_timer
 
 		li t0, 0
-		la t1, snake_dir_changed
-		sw t0, (t1)
+		sw t0, snake_dir_changed
 
 		# move the snake
 		jal move_snake
@@ -286,13 +286,46 @@ enter s0, s1
 	li t0, GRID_HEIGHT
 	blt s1, 0, _game_over
 	bge s1, t0, _game_over
-	j _move_forward
+
+	# check if intersecting itself
+	move a0, s0
+	move a1, s1
+	jal is_point_on_snake
+	beq v0, 1, _game_over
+	
+	# check if intersecting apple (x and y)
+	lw t0, apple_x
+	bne s0, t0, _move_forward
+	lw t0, apple_y
+	bne s1, t0, _move_forward
+	j _eat_apple
 
 	_game_over: # outside of the grid
 		# set lost_game to True
-		la t0, lost_game
 		li t1, 1
-		sw t1, (t0)
+		sw t1, lost_game
+		j _break
+
+	_eat_apple:
+		# increment apples eaten and snake length
+		lw t0, apples_eaten
+		add t0, t0, 1
+		sw t0, apples_eaten
+
+		lw t0, snake_len
+		add t0, t0, 1
+		sw t0, snake_len
+
+		# update snake segment coordinates
+		jal shift_snake_segments
+
+		# update snake head coordinates
+		sb s0, snake_x
+		sb s1, snake_y
+
+		# move the apple
+		jal move_apple
+
 		j _break
 	
 	_move_forward: # legal move
@@ -338,7 +371,28 @@ leave
 
 move_apple:
 enter
-	# TODO
+	_loop:
+		# Generate random x and y
+		li a0, 0
+		li a1, GRID_WIDTH
+		li v0, 42
+		syscall
+		move s0, v0
+
+		li a0, 0
+		li a1, GRID_HEIGHT
+		li v0, 42
+		syscall
+		move s1, v0
+
+		# check if intersecting snake
+		move a0, s0
+		move a1, s1
+		jal is_point_on_snake
+		beq v0, 1, _loop # intersects snake
+	
+	sw s0, apple_x
+	sw s1, apple_y
 leave
 
 # ------------------------------------------------------------------------------------------------
