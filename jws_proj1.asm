@@ -89,7 +89,7 @@ syscall_exit
 wait_for_game_start:
 enter
 	_loop: # while no keys are pressed
-		jal draw_all
+		# jal draw_all
 		jal display_update_and_clear
 		jal wait_for_next_frame
 		jal input_get_keys_pressed
@@ -218,9 +218,11 @@ leave
 
 move_snake:
 enter
-	jal compute_next_snake_pos
+	# update snake segment positions
+	jal shift_snake_segments
 
-	# store new coordinates
+	# store new snake head coordinates
+	jal compute_next_snake_pos
 	sb v0, snake_x
 	sb v1, snake_y
 leave
@@ -229,7 +231,28 @@ leave
 
 shift_snake_segments:
 enter
-	# TODO
+	lw t0, snake_len
+	sub t0, t0, 1 # i = snake_len -1
+	_for: # i >= 1
+		blt t0, 1, _break
+
+		# snake_x[i] = snake_x[i - 1]
+		sub t1, t0, 1 # [i - 1]
+		lb t1, snake_x(t1)
+
+		sb t1, snake_x(t0)
+
+		# snake_y[i] = snake_y[i - 1]
+		sub t1, t0, 1 # [i - 1]
+		lb t1, snake_y(t1)
+
+		sb t1, snake_y(t0)
+
+		# increment loop
+		sub t0, t0, 1
+		j _for
+	_break:
+
 leave
 
 # ------------------------------------------------------------------------------------------------
@@ -307,7 +330,7 @@ leave
 
 draw_snake:
 enter
-	move s0, zero # i
+	li s0, 0 # i
 	_for: # i < snake_len
 		lw t0, snake_len
 		bge s0, t0, _break_for
@@ -333,8 +356,10 @@ enter
 		
 		_break_if:
 		
+		# blit segment
 		jal display_blit_5x5_trans # blit segment
 
+		# increment loop
 		add s0, s0, 1 # s0++
 		j _for
 	_break_for:
