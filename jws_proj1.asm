@@ -190,13 +190,34 @@ leave
 
 update_snake:
 enter
-	jal move_snake
+	lw t0, snake_move_timer
+	_if: # check if time is up
+		beq t0, 0, _else
+		
+		# pause between moves
+		add t0, t0, 1
+		sw t0, snake_move_timer
+		j _break
+	_else:
+		# reset
+		lw t0, SNAKE_MOVE_DELAY
+		la t1, snake_move_timer
+		sw t0, (t1)
+		li t0, 0
+		la t1, snake_dir_changed
+		sw t0, (t1)
+
+		# move the snake
+		jal move_snake
+	_break:
 leave
 
 # ------------------------------------------------------------------------------------------------
 
 move_snake:
 enter
+	print_str "here"
+
 	jal compute_next_snake_pos
 
 	# store new coordinates
@@ -299,15 +320,14 @@ enter
 		lb a1, snake_y(s0)
 		mul a1, a1, GRID_CELL_SIZE
 
-		# check if head of snake  TODO
+		# check if head of snake
 		bne s0, zero, _else # s0 == 0
 			# a0 = tex_snake_head[snake_dir]
 			lw t0, snake_dir
 			mul t0, t0, WORD_SIZE
-			mul t0, t0, WORD_SIZE
-			la a2, tex_snake_head
-			add a2, a2, t0
+			lw a2, tex_snake_head(t0) # why not la??
 
+			j _break_if
 		_else:
 			la a2, tex_snake_segment
 		
