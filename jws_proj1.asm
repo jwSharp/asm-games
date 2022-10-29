@@ -181,7 +181,64 @@ leave
 # checks for the arrow keys to change the snake's direction.
 check_input:
 enter
-	# TODO
+	jal input_get_keys_held
+
+	# determine which key was pressed
+	lw t0, snake_dir
+
+	beq v0, KEY_U, _north
+	beq v0, KEY_D, _south
+	beq v0, KEY_R, _east
+	beq v0, KEY_L, _west
+	j _break
+
+	_north:
+		# invalid moves
+		beq t0, DIR_N, _break # already facing north
+		beq t0, DIR_S, _break # facing opposite direction, illegal
+
+		# set new direction
+		li t0, DIR_N
+		sw t0, snake_dir
+		j _new_dir
+
+	_south:
+		lw t0, snake_dir
+
+		# invalid moves
+		beq t0, DIR_S, _break # already facing south
+		beq t0, DIR_N, _break # facing opposite direction, illegal
+
+		# set new direction
+		li t0, DIR_S
+		sw t0, snake_dir
+		j _new_dir
+
+	_east:
+		# invalid moves
+		beq t0, DIR_E, _break # already facing east
+		beq t0, DIR_W, _break # facing opposite direction, illegal
+
+		# set new direction
+		li t0, DIR_E
+		sw t0, snake_dir
+		j _new_dir
+
+	_west:
+		# invalid moves
+		beq t0, DIR_W, _break # already facing west
+		beq t0, DIR_E, _break # facing opposite direction, illegal
+
+		# set new direction
+		li t0, DIR_W
+		sw t0, snake_dir
+		j _new_dir
+
+	_new_dir:
+		li t0, 1
+		sw t0, snake_dir_changed
+
+	_break:
 leave
 
 # ------------------------------------------------------------------------------------------------
@@ -331,7 +388,7 @@ _return:
 leave # return v0
 
 
-
+# ------------------------------------------------------------------------------------------------
 # Drawing functions
 # ------------------------------------------------------------------------------------------------
 
