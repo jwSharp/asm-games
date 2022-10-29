@@ -195,14 +195,16 @@ enter
 		beq t0, 0, _else
 		
 		# pause between moves
-		add t0, t0, 1
+		sub t0, t0, 1
 		sw t0, snake_move_timer
+
 		j _break
 	_else:
 		# reset
-		lw t0, SNAKE_MOVE_DELAY
+		li t0, SNAKE_MOVE_DELAY
 		la t1, snake_move_timer
 		sw t0, (t1)
+
 		li t0, 0
 		la t1, snake_dir_changed
 		sw t0, (t1)
@@ -216,8 +218,6 @@ leave
 
 move_snake:
 enter
-	print_str "here"
-
 	jal compute_next_snake_pos
 
 	# store new coordinates
@@ -275,7 +275,7 @@ enter
 
 		_differ:
 		
-		# increment loop
+		# increment
 		add t9, t9, 1
 		lw  t0, snake_len
 		blt t9, t0, _loop
@@ -322,10 +322,10 @@ enter
 
 		# check if head of snake
 		bne s0, zero, _else # s0 == 0
-			# a0 = tex_snake_head[snake_dir]
+			# a2 = tex_snake_head[snake_dir]
 			lw t0, snake_dir
 			mul t0, t0, WORD_SIZE
-			lw a2, tex_snake_head(t0) # why not la??
+			lw a2, tex_snake_head(t0) # ### why not la??
 
 			j _break_if
 		_else:
