@@ -83,18 +83,16 @@ syscall_exit
 # Misc game logic
 # ------------------------------------------------------------------------------------------------
 
-# ------------------------------------------------------------------------------------------------
-
 # waits for the user to press a key to start the game
 wait_for_game_start:
 enter
 	_loop: # while no keys are pressed
-		# jal draw_all
+		jal draw_all
 		jal display_update_and_clear
 		jal wait_for_next_frame
 		jal input_get_keys_pressed
 		
-		beq v0, 0, _loop
+		beq v0, 0, _loop # != 0 when key pressed
 leave
 
 # ------------------------------------------------------------------------------------------------
@@ -217,15 +215,39 @@ leave
 # ------------------------------------------------------------------------------------------------
 
 move_snake:
-enter
-	# update snake segment positions
-	jal shift_snake_segments
-
-	# store new snake head coordinates
+enter s0, s1
+	# compute next position
 	jal compute_next_snake_pos
-	sb v0, snake_x
-	sb v1, snake_y
-leave
+	move s0, v0
+	move s1, v1
+
+	# check if (x,y) outside of grid
+	li t0, GRID_WIDTH
+	blt s0, 0, _game_over
+	bge s0, t0, _game_over
+
+	li t0, GRID_HEIGHT
+	blt s1, 0, _game_over
+	bge s1, t0, _game_over
+	j _move_forward
+
+	_game_over: # outside of the grid
+		# set lost_game to True
+		la t0, lost_game
+		li t1, 1
+		sw t1, (t0)
+		j _break
+	
+	_move_forward: # legal move
+		# update snake segment coordinates
+		jal shift_snake_segments
+
+		# update snake head coordinates
+		sb s0, snake_x
+		sb s1, snake_y
+
+	_break:
+leave s0, s1
 
 # ------------------------------------------------------------------------------------------------
 
