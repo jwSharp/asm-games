@@ -53,7 +53,7 @@
 # ------------------------------------------------------------------------------------------------
 
 # Display
-.include "display_2211_0822.asm"
+.include "display.asm"
 .include "textures.asm"
 .text
 
@@ -61,6 +61,7 @@
 
 .globl main
 main:
+snake_main:
 	jal setup_snake
 
 	# pause for user to move
@@ -132,14 +133,14 @@ push_state
 		# display 1st line
 		li   a0, 7
 		li   a1, 25
-		lstr a2, "yay! you"
+		la_string a2, "yay! you"
 		li   a3, COLOR_GREEN
 		jal  display_draw_colored_text
 
 		# display 2nd line
 		li   a0, 12
 		li   a1, 31
-		lstr a2, "did it!"
+		la_string a2, "did it!"
 		li   a3, COLOR_GREEN
 		jal  display_draw_colored_text
 
@@ -149,7 +150,7 @@ push_state
 		# display cpush_stateed line
 		li   a0, 5
 		li   a1, 30
-		lstr a2, "oh no :("
+		la_string a2, "oh no :("
 		li   a3, COLOR_RED
 		jal  display_draw_colored_text
 	
