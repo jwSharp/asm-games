@@ -1,4 +1,4 @@
-# author Jacob Sharp
+# author Jarrett Billingsley - provided as a project resource
 .data
 
 tex_snake_segment: .byte

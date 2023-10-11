@@ -1,3 +1,5 @@
+# author Jarrett Billingsley - provided as a project resource
+
 # MMIO Registers
 .eqv DISPLAY_CTRL       0xFFFF0000
 .eqv DISPLAY_KEYS       0xFFFF0004
