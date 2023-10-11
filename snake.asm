@@ -1,5 +1,4 @@
-# Jacob Sharp
-# jws146
+# author Jacob Sharp
 
 # Directions
 .eqv DIR_N 0
