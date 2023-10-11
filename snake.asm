@@ -77,7 +77,7 @@ main:
 		beq v0, 0, _loop
 
 	jal show_game_over_message
-syscall_exit
+exit
 
 # ------------------------------------------------------------------------------------------------
 # Misc game logic
@@ -85,7 +85,7 @@ syscall_exit
 
 # waits for the user to press a key to start the game
 wait_for_game_start:
-enter
+push_state
 	_loop: # while no keys are pressed
 		jal draw_all
 		jal display_update_and_clear
@@ -93,13 +93,14 @@ enter
 		jal input_get_keys_pressed
 		
 		beq v0, 0, _loop # != 0 when key pressed
-leave
+pop_state
+jr ra
 
 # ------------------------------------------------------------------------------------------------
 
 # returns 1 if the game is over
 check_game_over:
-enter
+push_state
 	li v0, 0
 
 	# check if enough apples have been eaten
@@ -115,12 +116,13 @@ enter
 		li v0, 1
 	
 	_return: # return v0
-leave
+pop_state
+jr ra
 
 # ------------------------------------------------------------------------------------------------
 
 show_game_over_message:
-enter
+push_state
 	# clear display
 	jal display_update_and_clear
 
@@ -144,7 +146,7 @@ enter
 		j _endif
 	
 	_lost: # game lost
-		# display centered line
+		# display cpush_stateed line
 		li   a0, 5
 		li   a1, 30
 		lstr a2, "oh no :("
@@ -154,7 +156,8 @@ enter
 	_endif:
 
 	jal display_update_and_clear
-leave
+pop_state
+jr ra
 
 # ------------------------------------------------------------------------------------------------
 # Snake
@@ -162,7 +165,7 @@ leave
 
 # sets up the snake so the first two segments are in the middle of the screen.
 setup_snake:
-enter
+push_state
 	# snake head in the middle, tail below it
 	li  t0, GRID_WIDTH
 	div t0, t0, 2
@@ -174,13 +177,14 @@ enter
 	sb  t0, snake_y
 	add t0, t0, 1
 	sb  t0, snake_y + 1
-leave
+pop_state
+jr ra
 
 # ------------------------------------------------------------------------------------------------
 
 # checks for the arrow keys to change the snake's direction.
 check_input:
-enter
+push_state
 	# only check once per update TODO***********************************************
 	lw t0, snake_dir_changed
 	bne t0, 0, _break
@@ -241,12 +245,13 @@ enter
 		sw t0, snake_dir_changed
 
 	_break:
-leave
+pop_state
+jr ra
 
 # ------------------------------------------------------------------------------------------------
 
 update_snake:
-enter
+push_state
 	lw t0, snake_move_timer
 	_if: # check if time is up
 		beq t0, 0, _else
@@ -267,12 +272,13 @@ enter
 		# move the snake
 		jal move_snake
 	_break:
-leave
+pop_state
+jr ra
 
 # ------------------------------------------------------------------------------------------------
 
 move_snake:
-enter s0, s1
+push_state s0, s1
 	# compute next position
 	jal compute_next_snake_pos
 	move s0, v0
@@ -337,12 +343,13 @@ enter s0, s1
 		sb s1, snake_y
 
 	_break:
-leave s0, s1
+pop_state s0, s1
+jr ra
 
 # ------------------------------------------------------------------------------------------------
 
 shift_snake_segments:
-enter
+push_state
 	lw t0, snake_len
 	sub t0, t0, 1 # i = snake_len -1
 	_for: # i >= 1
@@ -365,12 +372,13 @@ enter
 		j _for
 	_break:
 
-leave
+pop_state
+jr ra
 
 # ------------------------------------------------------------------------------------------------
 
 move_apple:
-enter
+push_state
 	_loop:
 		# Generate random x and y
 		li a0, 0
@@ -393,12 +401,13 @@ enter
 	
 	sw s0, apple_x
 	sw s1, apple_y
-leave
+pop_state
+jr ra
 
 # ------------------------------------------------------------------------------------------------
 
 compute_next_snake_pos:
-enter
+push_state
 	lw t9, snake_dir
 
 	# v0 = direction_delta_x[snake_dir]
@@ -410,14 +419,15 @@ enter
 	lb v1, snake_y
 	lb t0, direction_delta_y(t9)
 	add v1, v1, t0
-leave # return v0, v1
+pop_state # return v0, v1
+jr ra
 
 # ------------------------------------------------------------------------------------------------
 
 # a0 = x, a1 = y
 # returns if coordinate is on the snake
 is_point_on_snake:
-enter
+push_state
 	# for i = 0 to snake_len
 	li t9, 0
 	_loop:
@@ -439,7 +449,8 @@ enter
 	# coordinate not on snake
 	li v0, 0
 _return:
-leave # return v0
+pop_state # return v0
+jr ra
 
 
 # ------------------------------------------------------------------------------------------------
@@ -447,7 +458,7 @@ leave # return v0
 # ------------------------------------------------------------------------------------------------
 
 draw_all:
-enter
+push_state
 	# check if lost
 	lw t0, lost_game
 	bne t0, 0, _return
@@ -457,12 +468,13 @@ enter
 		jal draw_hud
 
 _return:
-leave
+pop_state
+jr ra
 
 # ------------------------------------------------------------------------------------------------
 
 draw_snake:
-enter
+push_state
 	li s0, 0 # i
 	_for: # i < snake_len
 		lw t0, snake_len
@@ -496,12 +508,13 @@ enter
 		add s0, s0, 1 # s0++
 		j _for
 	_break_for:
-leave
+pop_state
+jr ra
 
 # ------------------------------------------------------------------------------------------------
 
 draw_apple:
-enter
+push_state
 	# apple coordinates
 	lw t0, apple_x
 	mul a0, t0, GRID_CELL_SIZE
@@ -512,12 +525,13 @@ enter
 	la a2, tex_apple
 
 	jal display_blit_5x5_trans
-leave
+pop_state
+jr ra
 
 # ------------------------------------------------------------------------------------------------
 
 draw_hud:
-enter
+push_state
 	# draw a horizontal line above the HUD showing the lower boundary of the playfield
 	li  a0, 0
 	li  a1, GRID_HEIGHT
@@ -541,4 +555,5 @@ enter
 	li a2, 58
 	li a2, APPLES_NEEDED
 	jal display_draw_int
-leave
+pop_state
+jr ra
