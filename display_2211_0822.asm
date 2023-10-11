@@ -1,3 +1,5 @@
+# author Jarrett Billingsley - provided as a project resource
+
 # Keypad and LED Display Simulator driver/API file.
 # All the public functions in this file are marked .globl.
 
@@ -150,11 +152,11 @@ input_get_keys_released:
 # also increments frame_counter once per call.
 .globl wait_for_next_frame
 wait_for_next_frame:
-enter s0
+push_state s0
 	lw s0, last_frame_time
 	_loop:
 		# while (sys_time() - last_frame_time) < MS_PER_FRAME {}
-		syscall_time
+		time
 		sub  t1, v0, s0
 	bltu t1, MS_PER_FRAME, _loop
 
@@ -163,7 +165,7 @@ enter s0
 
 	# frame_counter++
 	lw  t0, frame_counter
-	inc t0
+	increment t0
 	sw  t0, frame_counter
 
 	# last_frame_keys = this_frame_keys
@@ -173,7 +175,8 @@ enter s0
 	# this_frame_keys = DISPLAY_KEYS
 	lw t0, DISPLAY_KEYS
 	sw t0, this_frame_keys
-leave s0
+pop_state s0
+jr ra
 
 # -------------------------------------------------------------------------------------------------
 # copies the color data from display RAM onto the screen.
@@ -232,8 +235,8 @@ display_draw_hline:
 
 	_loop:
 		sb   a3, (t0)
-		inc  t0
-	dec  a2
+		increment  t0
+	decrement a2
 	bnez a2, _loop
 
 	jr       ra
@@ -260,7 +263,7 @@ display_draw_vline:
 	_loop:
 		sb  a3, (t0)
 		add t0, t0, DISPLAY_W
-	dec  a2
+	decrement a2
 	bnez a2, _loop
 
 	jr       ra
@@ -300,8 +303,8 @@ display_fill_rect:
 		move t2, a0
 		_loop_x:
 			sb   v1, (t1)
-			inc t1
-		inc t2
+			increment t1
+		increment t2
 		blt t2, a2, _loop_x
 	addi t0, t0, DISPLAY_W
 	blt  t0, a3, _loop_y
@@ -436,7 +439,7 @@ display_draw_text:
 #   a3 = color
 .globl display_draw_colored_text
 display_draw_colored_text:
-enter s0, s1, s2, s3
+push_state s0, s1, s2, s3
 	tlti a0, 0
 	tgei a0, 64
 	tlti a1, 0
@@ -467,11 +470,12 @@ enter s0, s1, s2, s3
 
 	_next:
 	add s0, s0, 6
-	inc s2
+	increment s2
 	j   _loop
 
 _exit:
-leave s0, s1, s2, s3
+pop_state s0, s1, s2, s3
+jr ra
 
 # -------------------------------------------------------------------------------------------------
 # draws a single character (using the font data at the top of the file) in white.
@@ -491,7 +495,7 @@ display_draw_char:
 #   a3 = color
 .globl display_draw_colored_char
 display_draw_colored_char:
-enter
+push_state
 	tlti a0, 0
 	tgei a0, 64
 	tlti a1, 0
@@ -511,7 +515,8 @@ enter
 	jal  display_show_char
 
 _exit:
-leave
+pop_state
+jr ra
 
 # -------------------------------------------------------------------------------------------------
 # draws a textual representation of an int in white.
@@ -533,7 +538,7 @@ display_draw_int:
 
 .globl display_draw_colored_int
 display_draw_colored_int:
-enter s0, s1, s2, s3, s4
+push_state s0, s1, s2, s3, s4
 	tlti a0, 0
 	tgei a0, 64
 	tlti a1, 0
@@ -587,7 +592,8 @@ enter s0, s1, s2, s3, s4
 		add  s0, s0, 6
 		div  s3, s3, 10
 	bnez s3, _loop
-leave s0, s1, s2, s3, s4
+pop_state s0, s1, s2, s3, s4
+jr ra
 
 # -------------------------------------------------------------------------------------------------
 # draws a textual representation of an int in hex (WITHOUT leading 0x) in white.
@@ -613,7 +619,7 @@ display_draw_int_hex:
 
 .globl display_draw_colored_int_hex
 display_draw_colored_int_hex:
-enter s0, s1, s2, s3, s4
+push_state s0, s1, s2, s3, s4
 	tlti a0, 0
 	tgei a0, 64
 	tlti a1, 0
@@ -651,7 +657,8 @@ enter s0, s1, s2, s3, s4
 		add s0, s0, 6
 		sub s3, s3, 4
 	bgez s3, _loop
-leave s0, s1, s2, s3, s4
+pop_state s0, s1, s2, s3, s4
+jr ra
 
 # -------------------------------------------------------------------------------------------------
 # quickly draw a 5x5-pixel pattern to the display. it can have transparent
