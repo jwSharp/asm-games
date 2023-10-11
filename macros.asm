@@ -1,287 +1,316 @@
+# author Jacob Sharp
 
-# puts a string literal into the .data segment and loads its address
-# into a register. use like:
-#   lstr a0, "hello, world"
-.macro lstr %rd, %str
+# ---------- PRINTING ----------
+# Prints a newline.
+.macro print_newline
+	print_chari '\n'
+.end_macro
+
+# Prints a single character from a register
+.macro print_char (%char)
+	push v0
+	push a0
+	
+	move a0, %char
+	li v0, 11
+	syscall
+	
+	pop a0
+	pop v0
+.end_macro
+
+# Prints a single character from a literal
+.macro print_chari (%char)
+	push v0
+	push a0
+	
+	li a0, %char
+	li v0, 11
+	syscall
+	
+	pop a0
+	pop v0
+.end_macro
+
+# Prints a string.
+.macro print_str (%str)
+	push v0
+	push a0
+	
 	.data
-	lstr_message: .asciiz %str
+	temp: .asciiz %str
+	
 	.text
-	la %rd, lstr_message
-.end_macro
-
-# print a string to the console. PRESERVES A0 AND V0.
-.macro print_str %str
-	push a0
-	push v0
-	lstr a0, %str
-	syscall_print_string
-	pop v0
-	pop a0
-.end_macro
-
-# print a newline to the console. PRESERVES A0 AND V0.
-.macro newline
-	push a0
-	push v0
-	li a0, '\n'
-	syscall_print_char
-	pop v0
-	pop a0
-.end_macro
-
-# print a string to the console, followed by a newline. PRESERVES A0 AND V0.
-.macro println_str %str
-	print_str %str
-	newline
-.end_macro
-
-# increment the value in a register by 1.
-.macro inc %reg
-	addi %reg, %reg, 1
-.end_macro
-
-# decrement the value in a register by 1.
-.macro dec %reg
-	addi %reg, %reg, -1
-.end_macro
-
-# set rd to the minimum of register rs and register rt.
-.macro min %rd, %rs, %rt
-	move %rd, %rs
-	blt  %rs, %rt, _end
-	move %rd, %rt
-_end:
-.end_macro
-
-# set rd to the minimum of register rs and immediate imm.
-.macro mini %rd, %rs, %imm
-	move %rd, %rs
-	blt  %rs, %imm, _end
-	li   %rd, %imm
-_end:
-.end_macro
-
-# set rd to the maximum of register rs and register rt.
-.macro max %rd, %rs, %rt
-	move %rd, %rs
-	bgt  %rs, %rt, _end
-	move %rd, %rt
-_end:
-.end_macro
-
-# set rd to the maximum of register rs and immediate imm.
-.macro maxi %rd, %rs, %imm
-	move %rd, %rs
-	bgt  %rs, %imm, _end
-	li   %rd, %imm
-_end:
-.end_macro
-
-# these let you do the syscall on a single line.
-# these all trash v0.
-.macro syscall_print_int
-	li v0, 1
-	syscall
-.end_macro
-.macro syscall_print_float
-	li v0, 2
-	syscall
-.end_macro
-.macro syscall_print_double
-	li v0, 3
-	syscall
-.end_macro
-.macro syscall_print_string
+	la a0, temp
 	li v0, 4
 	syscall
+	
+	pop a0
+	pop v0
 .end_macro
-.macro syscall_read_int
+
+# Prints a string.
+.macro println_str (%str)
+	print_str %str
+	print_newline
+.end_macro
+
+.macro address_string %dest, %str
+	.data
+	temp: .asciiz %str
+	.text
+	la %dest, temp
+.end_macro
+
+# Prints an integer form a register
+.macro print_int (%int)
+	push v0
+	push a0
+	
+	add a0, zero, %int
+	li v0, 1
+	syscall
+	
+	pop a0
+	pop v0
+.end_macro
+
+# Prints an integer from a literal
+.macro print_inti (%int)
+	push v0
+	push a0
+	
+	lw a0, %int
+	li v0, 1
+	syscall
+	
+	pop a0
+	pop v0
+.end_macro
+
+
+# Prints an integer in hexidecimal from a register
+.macro print_hex (%int)
+	push v0
+	push a0
+
+	add a0, zero, %int
+	li v0, 34
+	syscall
+		
+	pop a0
+	pop v0
+.end_macro
+
+
+# ---------- INPUT ----------
+# Prompt integer input. Stored in v0.
+.macro input_int
 	li v0, 5
 	syscall
 .end_macro
-.macro syscall_read_float
-	li v0, 6
-	syscall
-.end_macro
-.macro syscall_read_double
-	li v0, 7
-	syscall
-.end_macro
-.macro syscall_read_string
-	li v0, 8
-	syscall
-.end_macro
-.macro syscall_exit
-	li v0, 10
-	syscall
-.end_macro
-.macro syscall_print_char
-	li v0, 11
-	syscall
-.end_macro
-.macro syscall_read_char
-	li v0, 12
-	syscall
-.end_macro
-.macro syscall_time
-	li v0, 30
-	syscall
-.end_macro
-.macro syscall_midi_out
-	li v0, 31
-	syscall
-.end_macro
-.macro syscall_sleep
-	li v0, 32
-	syscall
-.end_macro
-.macro syscall_midi_out_sync
-	li v0, 33
-	syscall
-.end_macro
-.macro syscall_print_hex
-	li v0, 34
-	syscall
-.end_macro
-.macro syscall_print_bin
-	li v0, 35
-	syscall
-.end_macro
-.macro syscall_print_uint
-	li v0, 36
-	syscall
-.end_macro
-.macro syscall_seed_rand
-	li v0, 40
-	syscall
-.end_macro
-.macro syscall_rand_int
-	li v0, 41
-	syscall
-.end_macro
-.macro syscall_rand_range
-	li v0, 42
-	syscall
-.end_macro
 
-# these all push ra as well as any registers you list after them.
-# so "enter s0, s1" will save ra, s0, and s1, letting you use those s regs.
-.macro enter
+
+# ---------- FUNCTIONS ----------
+# Push ra to the stack.
+.macro push_state
 	addi sp, sp, -4
 	sw ra, 0(sp)
 .end_macro
 
-.macro enter %r1
+# Push ra and s0 to the stack.
+.macro push_state %s0
 	addi sp, sp, -8
 	sw ra, 0(sp)
-	sw %r1, 4(sp)
+	sw %s0, 4(sp)
 .end_macro
 
-.macro enter %r1, %r2
+# Push ra and s0-s1 to the stack.
+.macro push_state (%s0, %s1)
 	addi sp, sp, -12
 	sw ra, 0(sp)
-	sw %r1, 4(sp)
-	sw %r2, 8(sp)
+	sw %s0, 4(sp)
+	sw %s1, 8(sp)
 .end_macro
 
-.macro enter %r1, %r2, %r3
+# Push ra and s0-s2 to the stack.
+.macro push_state (%s0, %s1, %s2)
 	addi sp, sp, -16
 	sw ra, 0(sp)
-	sw %r1, 4(sp)
-	sw %r2, 8(sp)
-	sw %r3, 12(sp)
+	sw %s0, 4(sp)
+	sw %s1, 8(sp)
+	sw %s2, 12(sp)
 .end_macro
 
-.macro enter %r1, %r2, %r3, %r4
+# Push ra and s0-s3 to the stack.
+.macro push_state (%s0, %s1, %s2, %s3)
 	addi sp, sp, -20
 	sw ra, 0(sp)
-	sw %r1, 4(sp)
-	sw %r2, 8(sp)
-	sw %r3, 12(sp)
-	sw %r4, 16(sp)
+	sw %s0, 4(sp)
+	sw %s1, 8(sp)
+	sw %s2, 12(sp)
+	sw %s3, 16(sp)
 .end_macro
 
-.macro enter %r1, %r2, %r3, %r4, %r5
+# Push ra and s0-s4 to the stack.
+.macro push_state (%s0, %s1, %s2, %s3, %s4)
 	addi sp, sp, -24
 	sw ra, 0(sp)
-	sw %r1, 4(sp)
-	sw %r2, 8(sp)
-	sw %r3, 12(sp)
-	sw %r4, 16(sp)
-	sw %r5, 20(sp)
+	sw %s0, 4(sp)
+	sw %s1, 8(sp)
+	sw %s2, 12(sp)
+	sw %s3, 16(sp)
+	sw %s4, 20(sp)
 .end_macro
 
-.macro enter %r1, %r2, %r3, %r4, %r5, %r6
+# Push ra and s0-s5 to the stack.
+.macro push_state (%s0, %s1, %s2, %s3, %s4, %s5)
 	addi sp, sp, -28
 	sw ra, 0(sp)
-	sw %r1, 4(sp)
-	sw %r2, 8(sp)
-	sw %r3, 12(sp)
-	sw %r4, 16(sp)
-	sw %r5, 20(sp)
-	sw %r6, 24(sp)
+	sw %s0, 4(sp)
+	sw %s1, 8(sp)
+	sw %s2, 12(sp)
+	sw %s3, 16(sp)
+	sw %s4, 20(sp)
+	sw %s5, 24(sp)
 .end_macro
 
-# the counterpart to enter. these pop the registers, and ra, and then return.
-.macro leave
+# Push ra and s0-s6 to the stack.
+.macro push_state (%s0, %s1, %s2, %s3, %s4, %s5, %s6)
+	addi sp, sp, -32
+	sw ra, 0(sp)
+	sw %s0, 4(sp)
+	sw %s1, 8(sp)
+	sw %s2, 12(sp)
+	sw %s3, 16(sp)
+	sw %s4, 20(sp)
+	sw %s5, 24(sp)
+	sw %s6, 28(sp)
+.end_macro
+
+# Push ra and s0-s7 to the stack.
+.macro push_state (%s0, %s1, %s2, %s3, %s4, %s5, %s6, %s7)
+	addi sp, sp, -36
+	sw ra, 0(sp)
+	sw %s0, 4(sp)
+	sw %s1, 8(sp)
+	sw %s2, 12(sp)
+	sw %s3, 16(sp)
+	sw %s4, 20(sp)
+	sw %s5, 24(sp)
+	sw %s6, 28(sp)
+	sw %s7, 32(sp)
+.end_macro
+
+# Pull ra from the stack.
+.macro pop_state
 	lw ra, 0(sp)
 	addi sp, sp, 4
-	jr ra
 .end_macro
 
-.macro leave %r1
+# Pull ra and s0 from the stack.
+.macro pop_state (%s0)
 	lw ra, 0(sp)
-	lw %r1, 4(sp)
+	lw %s0, 4(sp)
 	addi sp, sp, 8
-	jr ra
 .end_macro
 
-.macro leave %r1, %r2
+# Pull ra and s0-s1 from the stack.
+.macro pop_state (%s0, %s1)
 	lw ra, 0(sp)
-	lw %r1, 4(sp)
-	lw %r2, 8(sp)
+	lw %s0, 4(sp)
+	lw %s1, 8(sp)
 	addi sp, sp, 12
-	jr ra
 .end_macro
 
-.macro leave %r1, %r2, %r3
+# Pull ra and s0-s2 from the stack.
+.macro pop_state (%s0, %s1, %s2)
 	lw ra, 0(sp)
-	lw %r1, 4(sp)
-	lw %r2, 8(sp)
-	lw %r3, 12(sp)
+	lw %s0, 4(sp)
+	lw %s1, 8(sp)
+	lw %s2, 12(sp)
 	addi sp, sp, 16
-	jr ra
 .end_macro
 
-.macro leave %r1, %r2, %r3, %r4
+# Pull ra and s0-s3 from the stack.
+.macro pop_state (%s0, %s1, %s2, %s3)
 	lw ra, 0(sp)
-	lw %r1, 4(sp)
-	lw %r2, 8(sp)
-	lw %r3, 12(sp)
-	lw %r4, 16(sp)
+	lw %s0, 4(sp)
+	lw %s1, 8(sp)
+	lw %s2, 12(sp)
+	lw %s3, 16(sp)
 	addi sp, sp, 20
-	jr ra
 .end_macro
 
-.macro leave %r1, %r2, %r3, %r4, %r5
+# Pull ra and s0-s4 from the stack.
+.macro pop_state (%s0, %s1, %s2, %s3, %s4)
 	lw ra, 0(sp)
-	lw %r1, 4(sp)
-	lw %r2, 8(sp)
-	lw %r3, 12(sp)
-	lw %r4, 16(sp)
-	lw %r5, 20(sp)
+	lw %s0, 4(sp)
+	lw %s1, 8(sp)
+	lw %s2, 12(sp)
+	lw %s3, 16(sp)
+	lw %s4, 20(sp)
 	addi sp, sp, 24
-	jr ra
 .end_macro
 
-.macro leave %r1, %r2, %r3, %r4, %r5, %r6
+# Pull ra and s0-s5 from the stack.
+.macro pop_state (%s0, %s1, %s2, %s3, %s4, %s5)
 	lw ra, 0(sp)
-	lw %r1, 4(sp)
-	lw %r2, 8(sp)
-	lw %r3, 12(sp)
-	lw %r4, 16(sp)
-	lw %r5, 20(sp)
-	lw %r6, 24(sp)
+	lw %s0, 4(sp)
+	lw %s1, 8(sp)
+	lw %s2, 12(sp)
+	lw %s3, 16(sp)
+	lw %s4, 20(sp)
+	lw %s5, 24(sp)
 	addi sp, sp, 28
-	jr ra
+.end_macro
+
+# Pull ra and s0-s6 from the stack.
+.macro pop_state (%s0, %s1, %s2, %s3, %s4, %s5, %s6)
+	lw ra, 0(sp)
+	lw %s0, 4(sp)
+	lw %s1, 8(sp)
+	lw %s2, 12(sp)
+	lw %s3, 16(sp)
+	lw %s4, 20(sp)
+	lw %s5, 24(sp)
+	lw %s6, 28(sp)
+	addi sp, sp, 32
+.end_macro
+
+# Pull ra and s0-s7 from the stack.
+.macro pop_state (%s0, %s1, %s2, %s3, %s4, %s5, %s6, %s7)
+	lw ra, 0(sp)
+	lw %s0, 4(sp)
+	lw %s1, 8(sp)
+	lw %s2, 12(sp)
+	lw %s3, 16(sp)
+	lw %s4, 20(sp)
+	lw %s5, 24(sp)
+	lw %s6, 28(sp)
+	lw %s7, 32(sp)
+	addi sp, sp, 36
+.end_macro
+
+
+# ---------- MATH ----------
+.macro increment (%address)
+	addi %address, %address, 1
+.end_macro
+
+.macro decrement (%address)
+	addi %address, %address, -1
+.end_macro
+
+
+# ---------- GENERAL ----------
+# End the program.
+.macro exit
+	li v0, 10
+	syscall
+.end_macro
+
+.macro time
+	li v0, 30
+	syscall
 .end_macro
