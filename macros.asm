@@ -55,7 +55,7 @@
 	print_newline
 .end_macro
 
-.macro address_string %dest, %str
+.macro la_string %dest, %str
 	.data
 	temp: .asciiz %str
 	.text
