@@ -62,6 +62,29 @@
 	la %dest, temp
 .end_macro
 
+# Prints a string.
+.macro print_strv (%str)
+	push v0
+	
+	li v0, 4
+	syscall
+	
+	pop v0
+.end_macro
+
+# Prints a string.
+.macro println_strv (%str)
+	print_strv %str
+	print_newline
+.end_macro
+
+.macro la_string %dest, %str
+	.data
+	temp: .asciiz %str
+	.text
+	la %dest, temp
+.end_macro
+
 # Prints an integer form a register
 .macro print_int (%int)
 	push v0
