@@ -118,8 +118,8 @@ compare_words:
 			lb t0, 0(t0)
 			
 			# load correct letter
-			add t1, s1, s2
-			lb t1, 0(t1) # ************************************************************
+			add t1, s1, s3
+			lb t1, 0(t1)
 			
 			# check if letters are the same
 			bne t0, t1, _incorrect_letter
