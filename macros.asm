@@ -49,12 +49,36 @@
 	pop v0
 .end_macro
 
-# Prints a string.
+# Prints a string followed by a newline.
 .macro println_str (%str)
 	print_str %str
 	print_newline
 .end_macro
 
+.macro la_string %dest, %str
+	.data
+	temp: .asciiz %str
+	.text
+	la %dest, temp
+.end_macro
+
+# Prints a string from a register.
+.macro print_strv (%str)
+	push v0
+	
+	li v0, 4
+	syscall
+	
+	pop v0
+.end_macro
+
+# Prints a string from a register followed by a newline.
+.macro println_strv (%str)
+	print_strv %str
+	print_newline
+.end_macro
+
+# Loads the address of a string.
 .macro la_string %dest, %str
 	.data
 	temp: .asciiz %str
@@ -109,6 +133,15 @@
 	li v0, 5
 	syscall
 .end_macro
+
+# Prompt string input. Stored at %destination of length %length.
+.macro input_str (%destination, %length)
+	add a0, zero, %destination
+	li a1, %length
+	li v0, 8
+	syscall
+.end_macro
+	
 
 
 # ---------- FUNCTIONS ----------
@@ -300,6 +333,14 @@
 
 .macro decrement (%address)
 	addi %address, %address, -1
+.end_macro
+
+# Set v0 to a random integer
+.macro random_int (%seed, %upper_bound)
+	li a0, %seed
+	li a1, %upper_bound
+	li v0, 42
+	syscall
 .end_macro
 
 
