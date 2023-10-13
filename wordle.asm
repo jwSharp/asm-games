@@ -4,11 +4,21 @@
 
 .data
 	user_guess:	.asciiz "abcde"
-	word:		.asciiz "tests"
+	correct_word: .asciiz "tests"
+	
+	words:
+		.asciiz "words"
+		.asciiz "ztest"
+		.asciiz "ptest"
 .text
 
-.eqv WORD_LENGTH 5 # 5 letters
+.eqv WORD_LENGTH 5 # letters
+.eqv WORD_SIZE 6 # plus null terminator
 .eqv MAX_GUESSES 5
+
+.eqv WORD_COUNT 3
+
+.eqv SEED 1 # seed for random int generation
 
 .globl main
 main:
@@ -21,6 +31,29 @@ main:
 		input_int
 		beq v0, 2, _exit			# input() == 2
 		bne v0, 1, _opening			# input() == 1
+		
+		# choose a random word
+		la t0, words
+		random_int SEED, WORD_COUNT
+		li t1, WORD_SIZE
+		mul t1, t1, v0
+		add t0, t1, t0 # t0 = words[i]
+		
+		# copy the word over
+		la t1, correct_word # t1 = word
+		lb t2, 0(t0)
+		sb t2, 0(t1)
+		lb t2, 1(t0)
+		sb t2, 1(t1)
+		lb t2, 2(t0)
+		sb t2, 2(t1)
+		lb t2, 3(t0)
+		sb t2, 3(t1)
+		lb t2, 4(t0)
+		sb t2, 4(t1)
+		lb t2, 5(t0)
+		sb t2, 5(t1) # copy each byte of the string
+		
 
 		li s0, 0
 		_guess:
@@ -29,16 +62,13 @@ main:
 
 			# prompt user guess
 			print_str "\nGuess a word\t"
-			la a0, user_guess
-			li a1, WORD_LENGTH
-			increment a1 # terminator
-			li v0, 8
-			syscall							# user_guess = input() limited to size of word_length + 1
+			la t0, user_guess
+			input_str t0, WORD_SIZE
 			print_newline
 
 			# print out which letters were correct
 			la a0, user_guess
-			la a1, word
+			la a1, correct_word
 			jal compare_words
 			
 			# check accuracy
@@ -49,13 +79,13 @@ main:
 			j _guess
 		
 	_loss:
-		la a0, word
+		la a0, correct_word
 		jal print_loss_message
 		
 		j _opening
 	
 	_win:
-		la a0, word
+		la a0, correct_word
 		jal print_win_message
 		
 		j _opening
@@ -81,10 +111,11 @@ compare_words:
 	# loop through letters
 	li s2, 0 # i
 	li s4, 1 # correct_word
+	
 	_guess_word_loop:
-		bge s2, 5, _end_guess_loop
+		bge s2, WORD_LENGTH, _end_guess_loop
 		
-		# convert letter to lower case and store it in the guess
+		# convert letter to lower case and store it
 		add t0, s0, s2
 		lb t0, 0(t0)
 		
@@ -113,7 +144,7 @@ compare_words:
 		# check if letter is in incorrect position
 		li s3, 0
 		_correct_word_loop:
-			bge s3, 5, _increment_guess
+			bge s3, WORD_LENGTH, _increment_guess
 			
 			# load guess letter
 			add t0, s0, s2
@@ -133,7 +164,9 @@ compare_words:
 			_incorrect_letter:
 			# print letter when it is the final letter
 			blt s3, 4, _increment_correct
+				print_chari ' '
 				print_char t0
+				print_chari ' '
 			
 			# next letter
 			_increment_correct:
