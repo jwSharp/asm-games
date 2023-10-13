@@ -1,24 +1,22 @@
 # author Jacob Sharp
+# jws146
 
 .include "macros.asm"
+.include "words.asm"
 
 .data
 	user_guess:	.asciiz "abcde"
 	correct_word: .asciiz "tests"
-	
-	words:
-		.asciiz "words"
-		.asciiz "ztest"
-		.asciiz "ptest"
 .text
+
+.eqv WORD_COUNT 75
 
 .eqv WORD_LENGTH 5 # letters
 .eqv WORD_SIZE 6 # plus null terminator
 .eqv MAX_GUESSES 5
 
-.eqv WORD_COUNT 3
-
 .eqv SEED 1 # seed for random int generation
+.eqv DEBUG 1 # set for debugging purposes
 
 .globl main
 main:
@@ -41,19 +39,18 @@ main:
 		
 		# copy the word over
 		la t1, correct_word # t1 = word
-		lb t2, 0(t0)
-		sb t2, 0(t1)
-		lb t2, 1(t0)
-		sb t2, 1(t1)
-		lb t2, 2(t0)
-		sb t2, 2(t1)
-		lb t2, 3(t0)
-		sb t2, 3(t1)
-		lb t2, 4(t0)
-		sb t2, 4(t1)
-		lb t2, 5(t0)
-		sb t2, 5(t1) # copy each byte of the string
+		move a0, t0
+		move a1, t1
+		jal store_word
 		
+# DEBUG
+		# print the correct word
+		li t0, DEBUG
+		bne t0, 1, _no_debug
+			la t0, correct_word
+			println_strv t0
+		_no_debug:
+# DEBUG end
 
 		li s0, 0
 		_guess:
@@ -183,6 +180,26 @@ compare_words:
 	move v0, s4
 	
 	pop_state s0, s1, s2, s3, s4
+	jr ra
+
+
+# a0 - destination
+# a1 - source
+# stores the source in the destination - no loop
+store_word:
+	lb t2, 0(a0)
+	sb t2, 0(a1)
+	lb t2, 1(a0)
+	sb t2, 1(a1)
+	lb t2, 2(a0)
+	sb t2, 2(a1)
+	lb t2, 3(a0)
+	sb t2, 3(a1)
+	lb t2, 4(a0)
+	sb t2, 4(a1)
+	lb t2, 5(a0)
+	sb t2, 5(a1)
+	
 	jr ra
 
 # a0 - an ascii letter
