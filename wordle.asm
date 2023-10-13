@@ -74,12 +74,13 @@ main:
 # a1 - address of correct word
 # v0 - 1 if word was correct, 0 otherwise
 compare_words:
-	push_state s0, s1, s2, s3
+	push_state s0, s1, s2, s3, s4
 	move s0, a0 # user guess safe
 	move s1, a1 # correct word safe
 	
 	# loop through letters
-	li s2, 0
+	li s2, 0 # i
+	li s4, 1 # correct_word
 	_guess_word_loop:
 		bge s2, 5, _end_guess_loop
 		
@@ -105,10 +106,11 @@ compare_words:
 			jal print_correct_location
 			j _increment_guess
 		
-		
+		_incorrect_location:
+		# update that word is not correct
+		li s4, 0
 		
 		# check if letter is in incorrect position
-		_incorrect_location:
 		li s3, 0
 		_correct_word_loop:
 			bge s3, 5, _increment_guess
@@ -145,7 +147,9 @@ compare_words:
 			j _guess_word_loop
 	_end_guess_loop:
 	
-	pop_state s0, s1, s2, s3
+	move v0, s4
+	
+	pop_state s0, s1, s2, s3, s4
 	jr ra
 
 # a0 - an ascii letter
@@ -224,6 +228,7 @@ print_loss_message:
 	println_str "\n\nUnlucky. You did not guess the word"
 	print_str	"The correct word was: "
 	print_strv s0
+	print_newline
 	
 	pop_state
 	jr ra
