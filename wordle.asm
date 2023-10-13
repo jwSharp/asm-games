@@ -9,8 +9,6 @@
 	correct_word: .asciiz "tests"
 .text
 
-.eqv WORD_COUNT 75
-
 .eqv WORD_LENGTH 5 # letters
 .eqv WORD_SIZE 6 # plus null terminator
 .eqv MAX_GUESSES 5
@@ -263,7 +261,7 @@ print_opening_message:
 
 print_play_prompt:
 	push_state
-	println_str "\nWould you like to get started?"
+	println_str "\n\nWould you like to get started?"
 	println_str "\t(1) Play"
 	println_str "\t(2) Quit"
 	

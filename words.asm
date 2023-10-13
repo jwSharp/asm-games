@@ -75,3 +75,6 @@ words:
 	.asciiz "means"
 	.asciiz "first"
 	.asciiz "thing"
+	
+.text
+.eqv WORD_COUNT 75
