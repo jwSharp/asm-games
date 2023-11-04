@@ -184,6 +184,7 @@ compare_words:
 # a0 - destination
 # a1 - source
 # stores the source in the destination - no loop
+# TODO store as .align so I can do this in two instructions
 store_word:
 	lb t2, 0(a0)
 	sb t2, 0(a1)
