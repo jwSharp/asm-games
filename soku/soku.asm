@@ -18,17 +18,8 @@
 
 .globl main
 main:
-	li	a0, 5
-	li	a1, 5
-	# This is a macro defined in macros.asm
-	la_string	a2, "Press x"
-	jal	display_draw_text
-
-	li	a0, 11
-	li	a1, 11
-	# This is a macro defined in macros.asm
-	la_string	a2, "to exit"
-	jal	display_draw_text
+	# pause for user to begin
+	jal wait_for_game_start
 
 	_game_loop:
 		jal	check_input
@@ -43,13 +34,6 @@ main:
 		beq v0, 0, _game_loop
 
 	jal show_game_over_message
-	exit
-
-_game_end:
-	# Clear the screen
-	jal	display_update_and_clear
-	jal	wait_for_next_frame
-
 	exit
 	
 	
@@ -75,6 +59,7 @@ draw_all:
 	push_state
 	
 	jal draw_walls
+	jal draw_targets
 	jal draw_blocks
 	jal draw_player
 	jal draw_hud
@@ -89,6 +74,12 @@ draw_walls:
 	pop_state
 	jr ra
 
+
+draw_targets:
+	push_state
+	
+	pop_state
+	jr ra
 
 draw_blocks:
 	push_state
@@ -115,13 +106,13 @@ draw_hud:
 	jal display_draw_hline
 
 	# draw moves taken
-	li   a0, 7
-	li   a1, 25
+	li   a0, 1
+	li   a1, 58
 	la_string a2, "moves:"
-	li   a3, COLOR_GREEN
+	li   a3, COLOR_WHITE
 	jal  display_draw_colored_text
 	
-	li a0, 1
+	li a0, 45
 	li a1, 58
 	lw a2, moves_taken
 	jal display_draw_int
@@ -129,13 +120,16 @@ draw_hud:
 	pop_state
 	jr ra
 	
+
+# --------------------- Game Start and End ----------------
+	
 # returns 1 if the game is over
 check_game_over:
 	push_state
 	
 	li v0, 0
 
-	# check if enough apples have been eaten
+	# check user hit the maximum moves
 	lw t0, moves_taken
 	blt t0, MAX_MOVES, _endif
 		li v0, 1
@@ -186,5 +180,49 @@ show_game_over_message:
 	_endif:
 
 	jal display_update_and_clear
+	pop_state
+	jr ra
+
+
+# waits for the user to press a key to start the game
+wait_for_game_start:
+	push_state
+	_loop: # while no keys are pressed
+		jal show_game_start_message
+		jal display_update_and_clear
+		jal wait_for_next_frame
+		jal input_get_keys_pressed
+		beq v0, 0, _loop # != 0 when key pressed
+	pop_state
+	jr ra
+
+show_game_start_message:
+	push_state
+	
+	# draw underlined SOKU
+	li	a0, 30
+	li	a1, 5
+	la_string	a2, "Soku!"
+	jal	display_draw_text
+	li  a0, 0
+	li  a1, 15
+	li  a2, DISPLAY_W
+	li  a3, COLOR_LIGHT_GREY
+	jal display_draw_hline
+	
+	# draw instructions to start
+	li	a0, 5
+	li	a1, 20
+	la_string	a2, "press any"
+	jal	display_draw_text
+	li	a0, 10
+	li	a1, 28
+	la_string	a2, "key to"
+	jal	display_draw_text
+	li	a0, 20
+	li	a1, 36
+	la_string	a2, "begin"
+	jal	display_draw_text
+	
 	pop_state
 	jr ra
