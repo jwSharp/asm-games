@@ -22,7 +22,6 @@
 .eqv COLOR_MAGENTA     6
 .eqv COLOR_WHITE       7
 .eqv COLOR_DARK_GREY   8
-.eqv COLOR_DARK_GRAY   8
 .eqv COLOR_BRICK       9
 .eqv COLOR_BROWN       10
 .eqv COLOR_TAN         11
@@ -30,7 +29,6 @@
 .eqv COLOR_DARK_BLUE   13
 .eqv COLOR_PURPLE      14
 .eqv COLOR_LIGHT_GREY  15
-.eqv COLOR_LIGHT_GRAY  15
 .eqv COLOR_NONE        -1
 
 # Input key flags
