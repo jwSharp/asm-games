@@ -1,6 +1,7 @@
 # author Jacob Sharp
 
 .include "display.asm"
+.include "textures.asm"
 
 # Grid
 .eqv GRID_CELL_SIZE 4 # pixels
@@ -14,6 +15,10 @@
 .data
 	lost_game: .word 0 # 1 if player lost game
 	moves_taken: .word 0
+	
+	# player
+	player_x: .word 3
+	player_y: .word 2
 .text
 
 .globl main
@@ -90,6 +95,17 @@ draw_blocks:
 
 draw_player:
 	push_state
+	
+	# player coordinates
+	lw t0, player_x
+	mul a0, t0, GRID_CELL_SIZE
+	lw t0 player_y
+	mul a1, t0, GRID_CELL_SIZE
+
+	# texture
+	la a2, tex_player
+
+	jal display_blit_5x5_trans
 	
 	pop_state
 	jr ra
