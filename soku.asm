@@ -1,10 +1,11 @@
 # author Jacob Sharp
 
 # Directions
-.eqv DIR_N 0
-.eqv DIR_E 1
-.eqv DIR_S 2
-.eqv DIR_W 3
+.eqv DIR_NONE	0
+.eqv DIR_N	1
+.eqv DIR_E	2
+.eqv DIR_S	3
+.eqv DIR_W	4
 
 # Grid
 .eqv GRID_CELL_SIZE 5 # pixels
@@ -13,7 +14,7 @@
 .eqv GRID_CELLS 132 # = GRID_WIDTH * GRID_HEIGHT
 
 # Moves
-.eqv MAX_MOVES 20
+.eqv MAX_MOVES 200
 
 # ------------------------------------------------------------------------------------------------
 
@@ -22,12 +23,12 @@
 	moves_taken: .word 0
 	
 	# player
-	player_x: .word 2
-	player_y: .word 2
+	player_x: .byte 2
+	player_y: .byte 2
 	player_dir: .word 0
 	
 	# grid
-	level: .word
+	level: .byte
 		0 0 1 1 1 1 1 0 0 0 0 0
 		1 1 1 0 0 0 1 0 0 0 0 0
 		1 3 5 2 0 0 1 0 0 0 0 0
@@ -39,6 +40,12 @@
 		1 1 1 1 1 1 1 1 0 0 0 0
 		0 0 0 0 0 0 0 0 0 0 0 0
 		0 0 0 0 0 0 0 0 0 0 0 0
+	
+	# A pair of arrays, indexed by direction, to turn a direction into x/y deltas.
+	# e.g. direction_delta_x[DIR_E] is 1, because moving east increments X by 1.
+	#                         NA  N  E  S  W
+	direction_delta_x: .byte   0  0  1  0 -1
+	direction_delta_y: .byte   0 -1  0  1  0
 
 .text
 	
@@ -69,7 +76,8 @@ main:
 
 	jal show_game_over_message
 	exit
-	
+
+# ------------------------------------------------------------------------------------------------
 	
 # checks for the arrow keys to change the snake's direction.
 check_input:
@@ -108,53 +116,68 @@ check_input:
 	pop_state
 	jr ra
 	
+# ------------------------------------------------------------------------------------------------
+	
 move_player:
+	# check if a key was pressed
+	lw t0, player_dir
+	beq zero, t0, _return
+	
+	push_state s0, s1
+	
+	# compute next position
+	jal compute_next_player_pos
+	move s0, v0
+	move s1, v1
+	
+	# check if (x,y) outside of grid
+	li t0, GRID_WIDTH
+	blt s0, 0, _invalid_move
+	bge s0, t0, _invalid_move
+	
+	li t0, GRID_HEIGHT
+	blt s1, 0, _invalid_move
+	bge s1, t0, _invalid_move
+	
+	_move_forward: # legal move
+		# update player coordinates
+		sb s0, player_x
+		sb s1, player_y
+		
+		# track the move
+		lw t0, moves_taken
+		increment t0
+		sw t0, moves_taken
+		
+		# reset player direction
+		sw zero, player_dir
+	
+	_invalid_move:
+	pop_state s0, s1
+		
+	_return: # does not update position
+	jr ra
+
+compute_next_player_pos:
 	push_state
 	
-	# check if player needs to move
-	la t0, player_dir
-	lw t0, (t0)
-	beq t0, zero, _break
-	
-	
-	# determine direction of movement
-	beq t0, DIR_N, _north
-	beq t0, DIR_S, _south
-	beq t0, DIR_E, _east
-	beq t0, DIR_W, _west
-	j _break # error if this happens
+	lw t9, player_dir
 
-	# update the player location
-	_north:
-		lw t1, player_y
-		decrement t1
-		sw t1, player_y
-		j _break
+	# v0 = direction_delta_x[snake_dir]
+	lb v0, player_x
+	lb t0, direction_delta_x(t9)
+	add v0, v0, t0
 
-	_south:
-		lw t1, player_y
-		increment t1
-		sw t1, player_y
-		j _break
-
-	_east:
-		lw t1, player_x
-		increment t1
-		sw t1, player_x
-		j _break
-
-	_west:
-		lw t1, player_x
-		decrement t1
-		sw t1, player_x
-		j _break
+	# v1 = direction_delta_y[snake_dir]
+	lb v1, player_y
+	lb t0, direction_delta_y(t9)
+	add v1, v1, t0
 	
-	
-	_break:
-	sw zero, player_dir
-	pop_state
+	pop_state # return v0, v1
 	jr ra
-	
+
+# ------------------------------------------------------------------------------------------------
+
 move_block:
 	push_state
 	
@@ -198,9 +221,9 @@ draw_player:
 	push_state
 	
 	# player coordinates
-	lw t0, player_x
+	lb t0, player_x
 	mul a0, t0, GRID_CELL_SIZE
-	lw t0 player_y
+	lb t0 player_y
 	mul a1, t0, GRID_CELL_SIZE
 
 	# texture
