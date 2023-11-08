@@ -92,6 +92,18 @@ move_player:
 	blt s1, 0, _invalid_move
 	bge s1, t0, _invalid_move
 	
+	# check if wall collision
+	la a0, level
+	move a1, s1 # y axis
+	move a2, s0 # x axis
+	li a3, GRID_WIDTH
+	jal matrix_element_address
+	lb t0, (v0)
+	
+	beq t0, 1, _invalid_move
+	
+	
+	
 	_move_forward: # legal move
 		# update player coordinates
 		sb s0, player_x
