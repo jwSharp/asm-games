@@ -1,4 +1,4 @@
-# author Luis Oliveira - provided as a project resource
+# author Jarrett Billingsley - provided as a project resource
 
 # MMIO Registers
 .eqv DISPLAY_CTRL       0xFFFF0000
@@ -33,10 +33,10 @@
 
 # Input key flags
 .eqv KEY_NONE          0x00
-.eqv KEY_UP            0x01
-.eqv KEY_DOWN          0x02
-.eqv KEY_LEFT          0x04
-.eqv KEY_RIGHT         0x08
+.eqv KEY_U             0x01
+.eqv KEY_D             0x02
+.eqv KEY_L             0x04
+.eqv KEY_R             0x08
 .eqv KEY_B             0x10
 .eqv KEY_Z             0x20
 .eqv KEY_X             0x40
