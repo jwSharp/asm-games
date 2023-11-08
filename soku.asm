@@ -1,11 +1,5 @@
 # author Jacob Sharp
 
-.include "utilities/display.asm"
-.include "utilities/soku_textures.asm"
-.text
-
-# ------------------------------------------------------------------------------------------------
-
 # Directions
 .eqv DIR_N 0
 .eqv DIR_E 1
@@ -48,6 +42,13 @@
 
 .text
 	
+# ------------------------------------------------------------------------------------------------
+
+.include "utilities/display.asm"
+.include "utilities/soku_textures.asm"
+		
+.text
+
 # ------------------------------------------------------------------------------------------------
 
 .globl main
@@ -115,39 +116,37 @@ move_player:
 	lw t0, (t0)
 	beq t0, zero, _break
 	
-	lw t1, player_x
-	lw t2, player_y
 	
+	# determine direction of movement
 	beq t0, DIR_N, _north
 	beq t0, DIR_S, _south
 	beq t0, DIR_E, _east
 	beq t0, DIR_W, _west
 	j _break # error if this happens
 
+	# update the player location
 	_north:
-		# calculate new location
+		lw t1, player_y
 		decrement t1
-		
-		# update the location
-		
+		sw t1, player_y
 		j _break
 
 	_south:
-		# calculate new location
+		lw t1, player_y
 		increment t1
-		
+		sw t1, player_y
 		j _break
 
 	_east:
-		# calculate new location
-		increment t2
-		
+		lw t1, player_x
+		increment t1
+		sw t1, player_x
 		j _break
 
 	_west:
-		# calculate new location
-		decrement t2
-		
+		lw t1, player_x
+		decrement t1
+		sw t1, player_x
 		j _break
 	
 	
