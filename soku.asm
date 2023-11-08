@@ -155,8 +155,7 @@ move_block:
 draw_all:
 	push_state
 	
-	jal draw_walls
-	jal draw_targets
+	jal draw_level
 	jal draw_blocks
 	jal draw_player
 	jal draw_hud
@@ -165,7 +164,8 @@ draw_all:
 	jr ra
 
 
-draw_walls:
+# Draws the map's walls and targets.
+draw_level:
 	push_state s0, s1, s2
 	
 	# draw each block for the current level
@@ -187,8 +187,13 @@ draw_walls:
 			#print_int t0
 			#print_chari ' '
 			
-			# check if it is a block
-			beq zero, t0, _next_spot
+			beq t0, 0, _next_spot
+			
+			# draw walls and targets
+			beq t0, 1, _draw_wall
+			beq t0, 2, _draw_target
+				
+			_draw_wall:
 				# calculate the location
 				mul a0, s1, GRID_CELL_SIZE
 				mul a1, s2, GRID_CELL_SIZE
@@ -196,6 +201,19 @@ draw_walls:
 				# draw the block
 				la a2, tex_wall
 				jal display_blit_5x5_trans
+				
+				j _next_spot
+			
+			_draw_target:
+				# calculate the location
+				mul a0, s1, GRID_CELL_SIZE
+				mul a1, s2, GRID_CELL_SIZE
+				
+				# draw the block
+				la a2, tex_target
+				jal display_blit_5x5_trans
+				
+				j _next_spot
 			
 			
 			_next_spot:
@@ -210,12 +228,6 @@ draw_walls:
 	#exit
 	
 	pop_state s0, s1, s2
-	jr ra
-
-draw_targets:
-	push_state
-	
-	pop_state
 	jr ra
 
 draw_blocks:
