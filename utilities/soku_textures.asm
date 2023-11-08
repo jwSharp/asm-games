@@ -1,3 +1,5 @@
+# author Jacob Sharp
+
 .data
 tex_player: .byte
 	13  3 13  3 13

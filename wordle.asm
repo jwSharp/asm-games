@@ -1,13 +1,9 @@
 # author Jacob Sharp
-# jws146
 
 .include "utilities/macros.asm"
 .include "utilities/wordle_word_list.asm"
 
-.data
-	user_guess:	.asciiz "abcde"
-	correct_word: .asciiz "tests"
-.text
+# ------------------------------------------------------------------------------------------------
 
 .eqv WORD_LENGTH 5 # letters
 .eqv WORD_SIZE 6 # plus null terminator
@@ -15,6 +11,15 @@
 
 .eqv SEED 1 # seed for random int generation
 .eqv DEBUG 1 # set for debugging purposes
+
+# ------------------------------------------------------------------------------------------------
+
+.data
+	user_guess:	.asciiz "abcde"
+	correct_word: .asciiz "tests"
+.text
+
+# ------------------------------------------------------------------------------------------------
 
 .globl main
 main:
