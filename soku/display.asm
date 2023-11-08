@@ -1,8 +1,7 @@
-# author Luis Oliveira - provided as a project resource
+# author Jarrett Billingsley - provided as a project resource
 
 # Keypad and LED Display Simulator driver/API file.
-# All the public functions in this file are marked .globl
-# Search for it!
+# All the public functions in this file are marked .globl.
 
 .include "constants.asm"
 .include "macros.asm"
@@ -204,16 +203,15 @@ display_update_and_clear:
 #	a2 = color (use one of the constants above)
 .globl display_set_pixel
 display_set_pixel:
-	blt a0, 0, _return
-	bge a0, 64, _return
-	blt a1, 0, _return
-	bge a1, 64, _return
+	tlti a0, 0
+	tgei a0, 64
+	tlti a1, 0
+	tgei a1, 64
 
 	sll t0, a1, DISPLAY_W_SHIFT
 	add t0, t0, a0
 	add t0, t0, DISPLAY_BASE
 	sb  a2, (t0)
-_return:
 	jr  ra
 
 # -------------------------------------------------------------------------------------------------
@@ -666,12 +664,23 @@ jr ra
 # quickly draw a 5x5-pixel pattern to the display. it can have transparent
 # pixels; those with COLOR_NONE will not change the display. This way you can
 # have "holes" in your images.
-# if the image goes off the edges of the screen, it will be properly clipped.
-# this means you can also give negative coordinates for x/y (down to -4 for each)
-# and have the image be off the left/top sides of the screen.
+# this function screen-wraps vertically properly. horizontally it just cheats
+# and takes advantage of the fact that writing past the end of a row writes to
+# the next row, but it's one pixel... cmon...........
 #	a0 = top-left x
 #	a1 = top-left y
 #	a2 = pointer to pattern (an array of 25 bytes stored row-by-row)
+
+.globl display_blit_5x5_trans
+display_blit_5x5_trans:
+	tlti a0, 0
+	tgei a0, 64
+	tlti a1, 0
+	tgei a1, 64
+
+	sll t1, a1, DISPLAY_W_SHIFT
+	add t1, t1, DISPLAY_BASE
+	add t1, t1, a0
 
 .macro BLIT_TRANS_PIXEL %off1, %off2
 	lb   t0, %off1(a2)
@@ -680,1034 +689,97 @@ jr ra
 _transparent:
 .end_macro
 
-.globl display_blit_5x5_trans
-display_blit_5x5_trans:
-	sll t1, a1, DISPLAY_W_SHIFT
-	add t1, t1, DISPLAY_BASE
-	add t1, t1, a0
-
-	blt a0, 0,  _off_left
-	bge a0, 60, _off_right
-
-	# CENTER CASE: x places image fully onscreen horizontally.
-	blt a1, 0,  _off_top
-	bge a1, 60, _off_bottom
+.macro NEXT_ROW
+	add t1, t1, 64
+	blt t1, DISPLAY_END, _nowrap
+	sub t1, t1, DISPLAY_SIZE
+_nowrap:
+.end_macro
 
 	BLIT_TRANS_PIXEL 0, 0
 	BLIT_TRANS_PIXEL 1, 1
 	BLIT_TRANS_PIXEL 2, 2
 	BLIT_TRANS_PIXEL 3, 3
 	BLIT_TRANS_PIXEL 4, 4
-_off_top_1:
-	BLIT_TRANS_PIXEL 5, 64
-	BLIT_TRANS_PIXEL 6, 65
-	BLIT_TRANS_PIXEL 7, 66
-	BLIT_TRANS_PIXEL 8, 67
-	BLIT_TRANS_PIXEL 9, 68
-_off_top_2:
-	BLIT_TRANS_PIXEL 10, 128
-	BLIT_TRANS_PIXEL 11, 129
-	BLIT_TRANS_PIXEL 12, 130
-	BLIT_TRANS_PIXEL 13, 131
-	BLIT_TRANS_PIXEL 14, 132
-_off_top_3:
-	BLIT_TRANS_PIXEL 15, 192
-	BLIT_TRANS_PIXEL 16, 193
-	BLIT_TRANS_PIXEL 17, 194
-	BLIT_TRANS_PIXEL 18, 195
-	BLIT_TRANS_PIXEL 19, 196
-_off_top_4:
-	BLIT_TRANS_PIXEL 20, 256
-	BLIT_TRANS_PIXEL 21, 257
-	BLIT_TRANS_PIXEL 22, 258
-	BLIT_TRANS_PIXEL 23, 259
-	BLIT_TRANS_PIXEL 24, 260
-	j _return
-
-_off_top:
-	# if we got here, we know the x coord places the image fully onscreen horizontally.
-	# weirdly we jump back up into the previous code to handle these cases.
-	blt  a1, -4, _return
-	beq  a1, -4, _off_top_4
-	beq  a1, -3, _off_top_3
-	beq  a1, -2, _off_top_2
-	j _off_top_1
-
-_off_bottom:
-	# if we got here, we know the x coord places the image fully onscreen horizontally.
-	bge  a1, 64, _return
-	BLIT_TRANS_PIXEL 0, 0
-	BLIT_TRANS_PIXEL 1, 1
-	BLIT_TRANS_PIXEL 2, 2
-	BLIT_TRANS_PIXEL 3, 3
-	BLIT_TRANS_PIXEL 4, 4
-	beq  a1, 63, _return
-	BLIT_TRANS_PIXEL 5, 64
-	BLIT_TRANS_PIXEL 6, 65
-	BLIT_TRANS_PIXEL 7, 66
-	BLIT_TRANS_PIXEL 8, 67
-	BLIT_TRANS_PIXEL 9, 68
-	beq  a1, 62, _return
-	BLIT_TRANS_PIXEL 10, 128
-	BLIT_TRANS_PIXEL 11, 129
-	BLIT_TRANS_PIXEL 12, 130
-	BLIT_TRANS_PIXEL 13, 131
-	BLIT_TRANS_PIXEL 14, 132
-	beq  a1, 61, _return
-	BLIT_TRANS_PIXEL 15, 192
-	BLIT_TRANS_PIXEL 16, 193
-	BLIT_TRANS_PIXEL 17, 194
-	BLIT_TRANS_PIXEL 18, 195
-	BLIT_TRANS_PIXEL 19, 196
-	# here, y == 60, so skip last row.
-	j _return
-
-_off_left:
-	blt  a0, -4, _return
-	beq  a0, -4, _left_4
-	beq  a0, -3, _left_3
-	beq  a0, -2, _left_2
-
-_left_1:
-	# x == -1 case
-	blt a1, 0,  _left_1_off_top
-	bge a1, 60, _left_1_off_bottom
-
-	BLIT_TRANS_PIXEL 1, 1
-	BLIT_TRANS_PIXEL 2, 2
-	BLIT_TRANS_PIXEL 3, 3
-	BLIT_TRANS_PIXEL 4, 4
-_left_1_off_top_1:
-	BLIT_TRANS_PIXEL 6, 65
-	BLIT_TRANS_PIXEL 7, 66
-	BLIT_TRANS_PIXEL 8, 67
-	BLIT_TRANS_PIXEL 9, 68
-_left_1_off_top_2:
-	BLIT_TRANS_PIXEL 11, 129
-	BLIT_TRANS_PIXEL 12, 130
-	BLIT_TRANS_PIXEL 13, 131
-	BLIT_TRANS_PIXEL 14, 132
-_left_1_off_top_3:
-	BLIT_TRANS_PIXEL 16, 193
-	BLIT_TRANS_PIXEL 17, 194
-	BLIT_TRANS_PIXEL 18, 195
-	BLIT_TRANS_PIXEL 19, 196
-_left_1_off_top_4:
-	BLIT_TRANS_PIXEL 21, 257
-	BLIT_TRANS_PIXEL 22, 258
-	BLIT_TRANS_PIXEL 23, 259
-	BLIT_TRANS_PIXEL 24, 260
-	j _return
-
-_left_1_off_top:
-	# if we got here, we know the x coord places the image fully onscreen horizontally.
-	# weirdly we jump back up into the previous code to handle these cases.
-	blt  a1, -4, _return
-	beq  a1, -4, _left_1_off_top_4
-	beq  a1, -3, _left_1_off_top_3
-	beq  a1, -2, _left_1_off_top_2
-	j _left_1_off_top_1
-
-_left_1_off_bottom:
-	bge  a1, 64, _return
-	BLIT_TRANS_PIXEL 1, 1
-	BLIT_TRANS_PIXEL 2, 2
-	BLIT_TRANS_PIXEL 3, 3
-	BLIT_TRANS_PIXEL 4, 4
-	beq  a1, 63, _return
-	BLIT_TRANS_PIXEL 6, 65
-	BLIT_TRANS_PIXEL 7, 66
-	BLIT_TRANS_PIXEL 8, 67
-	BLIT_TRANS_PIXEL 9, 68
-	beq  a1, 62, _return
-	BLIT_TRANS_PIXEL 11, 129
-	BLIT_TRANS_PIXEL 12, 130
-	BLIT_TRANS_PIXEL 13, 131
-	BLIT_TRANS_PIXEL 14, 132
-	beq  a1, 61, _return
-	BLIT_TRANS_PIXEL 16, 193
-	BLIT_TRANS_PIXEL 17, 194
-	BLIT_TRANS_PIXEL 18, 195
-	BLIT_TRANS_PIXEL 19, 196
-	# here, y == 60, so skip last row.
-	j _return
-
-_left_2:
-	# x == -2 case
-	blt a1, 0,  _left_2_off_top
-	bge a1, 60, _left_2_off_bottom
-
-	BLIT_TRANS_PIXEL 2, 2
-	BLIT_TRANS_PIXEL 3, 3
-	BLIT_TRANS_PIXEL 4, 4
-_left_2_off_top_1:
-	BLIT_TRANS_PIXEL 7, 66
-	BLIT_TRANS_PIXEL 8, 67
-	BLIT_TRANS_PIXEL 9, 68
-_left_2_off_top_2:
-	BLIT_TRANS_PIXEL 12, 130
-	BLIT_TRANS_PIXEL 13, 131
-	BLIT_TRANS_PIXEL 14, 132
-_left_2_off_top_3:
-	BLIT_TRANS_PIXEL 17, 194
-	BLIT_TRANS_PIXEL 18, 195
-	BLIT_TRANS_PIXEL 19, 196
-_left_2_off_top_4:
-	BLIT_TRANS_PIXEL 22, 258
-	BLIT_TRANS_PIXEL 23, 259
-	BLIT_TRANS_PIXEL 24, 260
-	j _return
-
-_left_2_off_top:
-	# if we got here, we know the x coord places the image fully onscreen horizontally.
-	# weirdly we jump back up into the previous code to handle these cases.
-	blt  a1, -4, _return
-	beq  a1, -4, _left_2_off_top_4
-	beq  a1, -3, _left_2_off_top_3
-	beq  a1, -2, _left_2_off_top_2
-	j _left_2_off_top_1
-
-_left_2_off_bottom:
-	# if we got here, we know the x coord places the image fully onscreen horizontally.
-	bge  a1, 64, _return
-	BLIT_TRANS_PIXEL 2, 2
-	BLIT_TRANS_PIXEL 3, 3
-	BLIT_TRANS_PIXEL 4, 4
-	beq  a1, 63, _return
-	BLIT_TRANS_PIXEL 7, 66
-	BLIT_TRANS_PIXEL 8, 67
-	BLIT_TRANS_PIXEL 9, 68
-	beq  a1, 62, _return
-	BLIT_TRANS_PIXEL 12, 130
-	BLIT_TRANS_PIXEL 13, 131
-	BLIT_TRANS_PIXEL 14, 132
-	beq  a1, 61, _return
-	BLIT_TRANS_PIXEL 17, 194
-	BLIT_TRANS_PIXEL 18, 195
-	BLIT_TRANS_PIXEL 19, 196
-	# here, y == 60, so skip last row.
-	j _return
-
-_left_3:
-	# x == -3 case
-	blt a1, 0,  _left_3_off_top
-	bge a1, 60, _left_3_off_bottom
-
-	BLIT_TRANS_PIXEL 3, 3
-	BLIT_TRANS_PIXEL 4, 4
-_left_3_off_top_1:
-	BLIT_TRANS_PIXEL 8, 67
-	BLIT_TRANS_PIXEL 9, 68
-_left_3_off_top_2:
-	BLIT_TRANS_PIXEL 13, 131
-	BLIT_TRANS_PIXEL 14, 132
-_left_3_off_top_3:
-	BLIT_TRANS_PIXEL 18, 195
-	BLIT_TRANS_PIXEL 19, 196
-_left_3_off_top_4:
-	BLIT_TRANS_PIXEL 23, 259
-	BLIT_TRANS_PIXEL 24, 260
-	j _return
-
-_left_3_off_top:
-	# if we got here, we know the x coord places the image fully onscreen horizontally.
-	# weirdly we jump back up into the previous code to handle these cases.
-	blt  a1, -4, _return
-	beq  a1, -4, _left_3_off_top_4
-	beq  a1, -3, _left_3_off_top_3
-	beq  a1, -2, _left_3_off_top_2
-	j _left_3_off_top_1
-
-_left_3_off_bottom:
-	# if we got here, we know the x coord places the image fully onscreen horizontally.
-	bge  a1, 64, _return
-	BLIT_TRANS_PIXEL 3, 3
-	BLIT_TRANS_PIXEL 4, 4
-	beq  a1, 63, _return
-	BLIT_TRANS_PIXEL 8, 67
-	BLIT_TRANS_PIXEL 9, 68
-	beq  a1, 62, _return
-	BLIT_TRANS_PIXEL 13, 131
-	BLIT_TRANS_PIXEL 14, 132
-	beq  a1, 61, _return
-	BLIT_TRANS_PIXEL 18, 195
-	BLIT_TRANS_PIXEL 19, 196
-	# here, y == 60, so skip last row.
-	j _return
-
-_left_4:
-	# x == -4 case
-	blt a1, 0,  _left_4_off_top
-	bge a1, 60, _left_4_off_bottom
-
-	BLIT_TRANS_PIXEL 4, 4
-_left_4_off_top_1:
-	BLIT_TRANS_PIXEL 9, 68
-_left_4_off_top_2:
-	BLIT_TRANS_PIXEL 14, 132
-_left_4_off_top_3:
-	BLIT_TRANS_PIXEL 19, 196
-_left_4_off_top_4:
-	BLIT_TRANS_PIXEL 24, 260
-	j _return
-
-_left_4_off_top:
-	# if we got here, we know the x coord places the image fully onscreen horizontally.
-	# weirdly we jump back up into the previous code to handle these cases.
-	blt  a1, -4, _return
-	beq  a1, -4, _left_4_off_top_4
-	beq  a1, -3, _left_4_off_top_3
-	beq  a1, -2, _left_4_off_top_2
-	j _left_4_off_top_1
-
-_left_4_off_bottom:
-	# if we got here, we know the x coord places the image fully onscreen horizontally.
-	bge  a1, 64, _return
-	BLIT_TRANS_PIXEL 4, 4
-	beq  a1, 63, _return
-	BLIT_TRANS_PIXEL 9, 68
-	beq  a1, 62, _return
-	BLIT_TRANS_PIXEL 14, 132
-	beq  a1, 61, _return
-	BLIT_TRANS_PIXEL 19, 196
-	# here, y == 60, so skip last row.
-	j _return
-
-_off_right:
-	bge  a0, 64, _return
-	beq  a0, 63, _right_63
-	beq  a0, 62, _right_62
-	beq  a0, 61, _right_61
-
-_right_60:
-	# x == 60 case
-	blt a1, 0,  _right_60_off_top
-	bge a1, 60, _right_60_off_bottom
-
-	BLIT_TRANS_PIXEL 0, 0
-	BLIT_TRANS_PIXEL 1, 1
-	BLIT_TRANS_PIXEL 2, 2
-	BLIT_TRANS_PIXEL 3, 3
-_right_60_off_top_1:
-	BLIT_TRANS_PIXEL 5, 64
-	BLIT_TRANS_PIXEL 6, 65
-	BLIT_TRANS_PIXEL 7, 66
-	BLIT_TRANS_PIXEL 8, 67
-_right_60_off_top_2:
-	BLIT_TRANS_PIXEL 10, 128
-	BLIT_TRANS_PIXEL 11, 129
-	BLIT_TRANS_PIXEL 12, 130
-	BLIT_TRANS_PIXEL 13, 131
-_right_60_off_top_3:
-	BLIT_TRANS_PIXEL 15, 192
-	BLIT_TRANS_PIXEL 16, 193
-	BLIT_TRANS_PIXEL 17, 194
-	BLIT_TRANS_PIXEL 18, 195
-_right_60_off_top_4:
-	BLIT_TRANS_PIXEL 20, 256
-	BLIT_TRANS_PIXEL 21, 257
-	BLIT_TRANS_PIXEL 22, 258
-	BLIT_TRANS_PIXEL 23, 259
-	j _return
-
-_right_60_off_top:
-	# if we got here, we know the x coord places the image fully onscreen horizontally.
-	# weirdly we jump back up into the previous code to handle these cases.
-	blt  a1, -4, _return
-	beq  a1, -4, _right_60_off_top_4
-	beq  a1, -3, _right_60_off_top_3
-	beq  a1, -2, _right_60_off_top_2
-	j _right_60_off_top_1
-
-_right_60_off_bottom:
-	# if we got here, we know the x coord places the image fully onscreen horizontally.
-	bge  a1, 64, _return
-	BLIT_TRANS_PIXEL 0, 0
-	BLIT_TRANS_PIXEL 1, 1
-	BLIT_TRANS_PIXEL 2, 2
-	BLIT_TRANS_PIXEL 3, 3
-	beq  a1, 63, _return
-	BLIT_TRANS_PIXEL 5, 64
-	BLIT_TRANS_PIXEL 6, 65
-	BLIT_TRANS_PIXEL 7, 66
-	BLIT_TRANS_PIXEL 8, 67
-	beq  a1, 62, _return
-	BLIT_TRANS_PIXEL 10, 128
-	BLIT_TRANS_PIXEL 11, 129
-	BLIT_TRANS_PIXEL 12, 130
-	BLIT_TRANS_PIXEL 13, 131
-	beq  a1, 61, _return
-	BLIT_TRANS_PIXEL 15, 192
-	BLIT_TRANS_PIXEL 16, 193
-	BLIT_TRANS_PIXEL 17, 194
-	BLIT_TRANS_PIXEL 18, 195
-	# here, y == 60, so skip last row.
-	j _return
-
-_right_61:
-	# x == 61 case
-	blt a1, 0,  _right_61_off_top
-	bge a1, 60, _right_61_off_bottom
-
-	BLIT_TRANS_PIXEL 0, 0
-	BLIT_TRANS_PIXEL 1, 1
-	BLIT_TRANS_PIXEL 2, 2
-_right_61_off_top_1:
-	BLIT_TRANS_PIXEL 5, 64
-	BLIT_TRANS_PIXEL 6, 65
-	BLIT_TRANS_PIXEL 7, 66
-_right_61_off_top_2:
-	BLIT_TRANS_PIXEL 10, 128
-	BLIT_TRANS_PIXEL 11, 129
-	BLIT_TRANS_PIXEL 12, 130
-_right_61_off_top_3:
-	BLIT_TRANS_PIXEL 15, 192
-	BLIT_TRANS_PIXEL 16, 193
-	BLIT_TRANS_PIXEL 17, 194
-_right_61_off_top_4:
-	BLIT_TRANS_PIXEL 20, 256
-	BLIT_TRANS_PIXEL 21, 257
-	BLIT_TRANS_PIXEL 22, 258
-	j _return
-
-_right_61_off_top:
-	# if we got here, we know the x coord places the image fully onscreen horizontally.
-	# weirdly we jump back up into the previous code to handle these cases.
-	blt  a1, -4, _return
-	beq  a1, -4, _right_61_off_top_4
-	beq  a1, -3, _right_61_off_top_3
-	beq  a1, -2, _right_61_off_top_2
-	j _right_61_off_top_1
-
-_right_61_off_bottom:
-	# if we got here, we know the x coord places the image fully onscreen horizontally.
-	bge  a1, 64, _return
-	BLIT_TRANS_PIXEL 0, 0
-	BLIT_TRANS_PIXEL 1, 1
-	BLIT_TRANS_PIXEL 2, 2
-	beq  a1, 63, _return
-	BLIT_TRANS_PIXEL 5, 64
-	BLIT_TRANS_PIXEL 6, 65
-	BLIT_TRANS_PIXEL 7, 66
-	beq  a1, 62, _return
-	BLIT_TRANS_PIXEL 10, 128
-	BLIT_TRANS_PIXEL 11, 129
-	BLIT_TRANS_PIXEL 12, 130
-	beq  a1, 61, _return
-	BLIT_TRANS_PIXEL 15, 192
-	BLIT_TRANS_PIXEL 16, 193
-	BLIT_TRANS_PIXEL 17, 194
-	# here, y == 60, so skip last row.
-	j _return
-
-_right_62:
-	# x == 62 case
-	blt a1, 0,  _right_62_off_top
-	bge a1, 60, _right_62_off_bottom
-
-	BLIT_TRANS_PIXEL 0, 0
-	BLIT_TRANS_PIXEL 1, 1
-_right_62_off_top_1:
-	BLIT_TRANS_PIXEL 5, 64
-	BLIT_TRANS_PIXEL 6, 65
-_right_62_off_top_2:
-	BLIT_TRANS_PIXEL 10, 128
-	BLIT_TRANS_PIXEL 11, 129
-_right_62_off_top_3:
-	BLIT_TRANS_PIXEL 15, 192
-	BLIT_TRANS_PIXEL 16, 193
-_right_62_off_top_4:
-	BLIT_TRANS_PIXEL 20, 256
-	BLIT_TRANS_PIXEL 21, 257
-	j _return
-
-_right_62_off_top:
-	# if we got here, we know the x coord places the image fully onscreen horizontally.
-	# weirdly we jump back up into the previous code to handle these cases.
-	blt  a1, -4, _return
-	beq  a1, -4, _right_62_off_top_4
-	beq  a1, -3, _right_62_off_top_3
-	beq  a1, -2, _right_62_off_top_2
-	j _right_62_off_top_1
-
-_right_62_off_bottom:
-	# if we got here, we know the x coord places the image fully onscreen horizontally.
-	bge  a1, 64, _return
-	BLIT_TRANS_PIXEL 0, 0
-	BLIT_TRANS_PIXEL 1, 1
-	beq  a1, 63, _return
-	BLIT_TRANS_PIXEL 5, 64
-	BLIT_TRANS_PIXEL 6, 65
-	beq  a1, 62, _return
-	BLIT_TRANS_PIXEL 10, 128
-	BLIT_TRANS_PIXEL 11, 129
-	beq  a1, 61, _return
-	BLIT_TRANS_PIXEL 15, 192
-	BLIT_TRANS_PIXEL 16, 193
-	# here, y == 60, so skip last row.
-	j _return
-
-_right_63:
-	# x == 63 case
-	blt a1, 0,  _right_63_off_top
-	bge a1, 60, _right_63_off_bottom
-
-	BLIT_TRANS_PIXEL 0, 0
-_right_63_off_top_1:
-	BLIT_TRANS_PIXEL 5, 64
-_right_63_off_top_2:
-	BLIT_TRANS_PIXEL 10, 128
-_right_63_off_top_3:
-	BLIT_TRANS_PIXEL 15, 192
-_right_63_off_top_4:
-	BLIT_TRANS_PIXEL 20, 256
-	j _return
-
-_right_63_off_top:
-	# if we got here, we know the x coord places the image fully onscreen horizontally.
-	# weirdly we jump back up into the previous code to handle these cases.
-	blt  a1, -4, _return
-	beq  a1, -4, _right_63_off_top_4
-	beq  a1, -3, _right_63_off_top_3
-	beq  a1, -2, _right_63_off_top_2
-	j _right_63_off_top_1
-
-_right_63_off_bottom:
-	# if we got here, we know the x coord places the image fully onscreen horizontally.
-	bge  a1, 64, _return
-	BLIT_TRANS_PIXEL 0, 0
-	beq  a1, 63, _return
-	BLIT_TRANS_PIXEL 5, 64
-	beq  a1, 62, _return
-	BLIT_TRANS_PIXEL 10, 128
-	beq  a1, 61, _return
-	BLIT_TRANS_PIXEL 15, 192
-	# here, y == 60, so skip last row.
-
-_return:
-	jr ra
+	NEXT_ROW
+	BLIT_TRANS_PIXEL 5, 0
+	BLIT_TRANS_PIXEL 6, 1
+	BLIT_TRANS_PIXEL 7, 2
+	BLIT_TRANS_PIXEL 8, 3
+	BLIT_TRANS_PIXEL 9, 4
+	NEXT_ROW
+	BLIT_TRANS_PIXEL 10, 0
+	BLIT_TRANS_PIXEL 11, 1
+	BLIT_TRANS_PIXEL 12, 2
+	BLIT_TRANS_PIXEL 13, 3
+	BLIT_TRANS_PIXEL 14, 4
+	NEXT_ROW
+	BLIT_TRANS_PIXEL 15, 0
+	BLIT_TRANS_PIXEL 16, 1
+	BLIT_TRANS_PIXEL 17, 2
+	BLIT_TRANS_PIXEL 18, 3
+	BLIT_TRANS_PIXEL 19, 4
+	NEXT_ROW
+	BLIT_TRANS_PIXEL 20, 0
+	BLIT_TRANS_PIXEL 21, 1
+	BLIT_TRANS_PIXEL 22, 2
+	BLIT_TRANS_PIXEL 23, 3
+	BLIT_TRANS_PIXEL 24, 4
+	jr       ra
 
 # -------------------------------------------------------------------------------------------------
 # quickly draw a 5x5-pixel pattern to the display without transparency.
 # if it has any COLOR_NONE pixels, the result is undefined.
-# if the image goes off the edges of the screen, it will be properly clipped.
-# this means you can also give negative coordinates for x/y (down to -4 for each)
-# and have the image be off the left/top sides of the screen.
 #	a0 = top-left x
 #	a1 = top-left y
 #	a2 = pointer to pattern (an array of 25 bytes stored row-by-row)
 
-.macro BLIT_PIXEL %off1, %off2
-	lb t0, %off1(a2)
-	sb t0, %off2(t1)
-.end_macro
-
 .globl display_blit_5x5
 display_blit_5x5:
-	sll t1, a1, DISPLAY_W_SHIFT
-	add t1, t1, DISPLAY_BASE
-	add t1, t1, a0
+	tlti a0, 0
+	tgei a0, 64
+	tlti a1, 0
+	tgei a1, 64
 
-	blt a0, 0,  _off_left
-	bge a0, 60, _off_right
+	sll a1, a1, DISPLAY_W_SHIFT
+	add a1, a1, DISPLAY_BASE
+	add a1, a1, a0
 
-	# CENTER CASE: x places image fully onscreen horizontally.
-	blt a1, 0,  _off_top
-	bge a1, 60, _off_bottom
+.macro BLIT_PIXEL %off1, %off2
+	lb t0, %off1(a2)
+	sb t0, %off2(a1)
+.end_macro
 
 	BLIT_PIXEL 0, 0
 	BLIT_PIXEL 1, 1
 	BLIT_PIXEL 2, 2
 	BLIT_PIXEL 3, 3
 	BLIT_PIXEL 4, 4
-_off_top_1:
+
 	BLIT_PIXEL 5, 64
 	BLIT_PIXEL 6, 65
 	BLIT_PIXEL 7, 66
 	BLIT_PIXEL 8, 67
 	BLIT_PIXEL 9, 68
-_off_top_2:
+
 	BLIT_PIXEL 10, 128
 	BLIT_PIXEL 11, 129
 	BLIT_PIXEL 12, 130
 	BLIT_PIXEL 13, 131
 	BLIT_PIXEL 14, 132
-_off_top_3:
+
 	BLIT_PIXEL 15, 192
 	BLIT_PIXEL 16, 193
 	BLIT_PIXEL 17, 194
 	BLIT_PIXEL 18, 195
 	BLIT_PIXEL 19, 196
-_off_top_4:
+
 	BLIT_PIXEL 20, 256
 	BLIT_PIXEL 21, 257
 	BLIT_PIXEL 22, 258
 	BLIT_PIXEL 23, 259
 	BLIT_PIXEL 24, 260
-	j _return
-
-_off_top:
-	# if we got here, we know the x coord places the image fully onscreen horizontally.
-	# weirdly we jump back up into the previous code to handle these cases.
-	blt  a1, -4, _return
-	beq  a1, -4, _off_top_4
-	beq  a1, -3, _off_top_3
-	beq  a1, -2, _off_top_2
-	j _off_top_1
-
-_off_bottom:
-	# if we got here, we know the x coord places the image fully onscreen horizontally.
-	bge  a1, 64, _return
-	BLIT_PIXEL 0, 0
-	BLIT_PIXEL 1, 1
-	BLIT_PIXEL 2, 2
-	BLIT_PIXEL 3, 3
-	BLIT_PIXEL 4, 4
-	beq  a1, 63, _return
-	BLIT_PIXEL 5, 64
-	BLIT_PIXEL 6, 65
-	BLIT_PIXEL 7, 66
-	BLIT_PIXEL 8, 67
-	BLIT_PIXEL 9, 68
-	beq  a1, 62, _return
-	BLIT_PIXEL 10, 128
-	BLIT_PIXEL 11, 129
-	BLIT_PIXEL 12, 130
-	BLIT_PIXEL 13, 131
-	BLIT_PIXEL 14, 132
-	beq  a1, 61, _return
-	BLIT_PIXEL 15, 192
-	BLIT_PIXEL 16, 193
-	BLIT_PIXEL 17, 194
-	BLIT_PIXEL 18, 195
-	BLIT_PIXEL 19, 196
-	# here, y == 60, so skip last row.
-	j _return
-
-_off_left:
-	blt  a0, -4, _return
-	beq  a0, -4, _left_4
-	beq  a0, -3, _left_3
-	beq  a0, -2, _left_2
-
-_left_1:
-	# x == -1 case
-	blt a1, 0,  _left_1_off_top
-	bge a1, 60, _left_1_off_bottom
-
-	BLIT_PIXEL 1, 1
-	BLIT_PIXEL 2, 2
-	BLIT_PIXEL 3, 3
-	BLIT_PIXEL 4, 4
-_left_1_off_top_1:
-	BLIT_PIXEL 6, 65
-	BLIT_PIXEL 7, 66
-	BLIT_PIXEL 8, 67
-	BLIT_PIXEL 9, 68
-_left_1_off_top_2:
-	BLIT_PIXEL 11, 129
-	BLIT_PIXEL 12, 130
-	BLIT_PIXEL 13, 131
-	BLIT_PIXEL 14, 132
-_left_1_off_top_3:
-	BLIT_PIXEL 16, 193
-	BLIT_PIXEL 17, 194
-	BLIT_PIXEL 18, 195
-	BLIT_PIXEL 19, 196
-_left_1_off_top_4:
-	BLIT_PIXEL 21, 257
-	BLIT_PIXEL 22, 258
-	BLIT_PIXEL 23, 259
-	BLIT_PIXEL 24, 260
-	j _return
-
-_left_1_off_top:
-	# if we got here, we know the x coord places the image fully onscreen horizontally.
-	# weirdly we jump back up into the previous code to handle these cases.
-	blt  a1, -4, _return
-	beq  a1, -4, _left_1_off_top_4
-	beq  a1, -3, _left_1_off_top_3
-	beq  a1, -2, _left_1_off_top_2
-	j _left_1_off_top_1
-
-_left_1_off_bottom:
-	bge  a1, 64, _return
-	BLIT_PIXEL 1, 1
-	BLIT_PIXEL 2, 2
-	BLIT_PIXEL 3, 3
-	BLIT_PIXEL 4, 4
-	beq  a1, 63, _return
-	BLIT_PIXEL 6, 65
-	BLIT_PIXEL 7, 66
-	BLIT_PIXEL 8, 67
-	BLIT_PIXEL 9, 68
-	beq  a1, 62, _return
-	BLIT_PIXEL 11, 129
-	BLIT_PIXEL 12, 130
-	BLIT_PIXEL 13, 131
-	BLIT_PIXEL 14, 132
-	beq  a1, 61, _return
-	BLIT_PIXEL 16, 193
-	BLIT_PIXEL 17, 194
-	BLIT_PIXEL 18, 195
-	BLIT_PIXEL 19, 196
-	# here, y == 60, so skip last row.
-	j _return
-
-_left_2:
-	# x == -2 case
-	blt a1, 0,  _left_2_off_top
-	bge a1, 60, _left_2_off_bottom
-
-	BLIT_PIXEL 2, 2
-	BLIT_PIXEL 3, 3
-	BLIT_PIXEL 4, 4
-_left_2_off_top_1:
-	BLIT_PIXEL 7, 66
-	BLIT_PIXEL 8, 67
-	BLIT_PIXEL 9, 68
-_left_2_off_top_2:
-	BLIT_PIXEL 12, 130
-	BLIT_PIXEL 13, 131
-	BLIT_PIXEL 14, 132
-_left_2_off_top_3:
-	BLIT_PIXEL 17, 194
-	BLIT_PIXEL 18, 195
-	BLIT_PIXEL 19, 196
-_left_2_off_top_4:
-	BLIT_PIXEL 22, 258
-	BLIT_PIXEL 23, 259
-	BLIT_PIXEL 24, 260
-	j _return
-
-_left_2_off_top:
-	# if we got here, we know the x coord places the image fully onscreen horizontally.
-	# weirdly we jump back up into the previous code to handle these cases.
-	blt  a1, -4, _return
-	beq  a1, -4, _left_2_off_top_4
-	beq  a1, -3, _left_2_off_top_3
-	beq  a1, -2, _left_2_off_top_2
-	j _left_2_off_top_1
-
-_left_2_off_bottom:
-	# if we got here, we know the x coord places the image fully onscreen horizontally.
-	bge  a1, 64, _return
-	BLIT_PIXEL 2, 2
-	BLIT_PIXEL 3, 3
-	BLIT_PIXEL 4, 4
-	beq  a1, 63, _return
-	BLIT_PIXEL 7, 66
-	BLIT_PIXEL 8, 67
-	BLIT_PIXEL 9, 68
-	beq  a1, 62, _return
-	BLIT_PIXEL 12, 130
-	BLIT_PIXEL 13, 131
-	BLIT_PIXEL 14, 132
-	beq  a1, 61, _return
-	BLIT_PIXEL 17, 194
-	BLIT_PIXEL 18, 195
-	BLIT_PIXEL 19, 196
-	# here, y == 60, so skip last row.
-	j _return
-
-_left_3:
-	# x == -3 case
-	blt a1, 0,  _left_3_off_top
-	bge a1, 60, _left_3_off_bottom
-
-	BLIT_PIXEL 3, 3
-	BLIT_PIXEL 4, 4
-_left_3_off_top_1:
-	BLIT_PIXEL 8, 67
-	BLIT_PIXEL 9, 68
-_left_3_off_top_2:
-	BLIT_PIXEL 13, 131
-	BLIT_PIXEL 14, 132
-_left_3_off_top_3:
-	BLIT_PIXEL 18, 195
-	BLIT_PIXEL 19, 196
-_left_3_off_top_4:
-	BLIT_PIXEL 23, 259
-	BLIT_PIXEL 24, 260
-	j _return
-
-_left_3_off_top:
-	# if we got here, we know the x coord places the image fully onscreen horizontally.
-	# weirdly we jump back up into the previous code to handle these cases.
-	blt  a1, -4, _return
-	beq  a1, -4, _left_3_off_top_4
-	beq  a1, -3, _left_3_off_top_3
-	beq  a1, -2, _left_3_off_top_2
-	j _left_3_off_top_1
-
-_left_3_off_bottom:
-	# if we got here, we know the x coord places the image fully onscreen horizontally.
-	bge  a1, 64, _return
-	BLIT_PIXEL 3, 3
-	BLIT_PIXEL 4, 4
-	beq  a1, 63, _return
-	BLIT_PIXEL 8, 67
-	BLIT_PIXEL 9, 68
-	beq  a1, 62, _return
-	BLIT_PIXEL 13, 131
-	BLIT_PIXEL 14, 132
-	beq  a1, 61, _return
-	BLIT_PIXEL 18, 195
-	BLIT_PIXEL 19, 196
-	# here, y == 60, so skip last row.
-	j _return
-
-_left_4:
-	# x == -4 case
-	blt a1, 0,  _left_4_off_top
-	bge a1, 60, _left_4_off_bottom
-
-	BLIT_PIXEL 4, 4
-_left_4_off_top_1:
-	BLIT_PIXEL 9, 68
-_left_4_off_top_2:
-	BLIT_PIXEL 14, 132
-_left_4_off_top_3:
-	BLIT_PIXEL 19, 196
-_left_4_off_top_4:
-	BLIT_PIXEL 24, 260
-	j _return
-
-_left_4_off_top:
-	# if we got here, we know the x coord places the image fully onscreen horizontally.
-	# weirdly we jump back up into the previous code to handle these cases.
-	blt  a1, -4, _return
-	beq  a1, -4, _left_4_off_top_4
-	beq  a1, -3, _left_4_off_top_3
-	beq  a1, -2, _left_4_off_top_2
-	j _left_4_off_top_1
-
-_left_4_off_bottom:
-	# if we got here, we know the x coord places the image fully onscreen horizontally.
-	bge  a1, 64, _return
-	BLIT_PIXEL 4, 4
-	beq  a1, 63, _return
-	BLIT_PIXEL 9, 68
-	beq  a1, 62, _return
-	BLIT_PIXEL 14, 132
-	beq  a1, 61, _return
-	BLIT_PIXEL 19, 196
-	# here, y == 60, so skip last row.
-	j _return
-
-_off_right:
-	bge  a0, 64, _return
-	beq  a0, 63, _right_63
-	beq  a0, 62, _right_62
-	beq  a0, 61, _right_61
-
-_right_60:
-	# x == 60 case
-	blt a1, 0,  _right_60_off_top
-	bge a1, 60, _right_60_off_bottom
-
-	BLIT_PIXEL 0, 0
-	BLIT_PIXEL 1, 1
-	BLIT_PIXEL 2, 2
-	BLIT_PIXEL 3, 3
-_right_60_off_top_1:
-	BLIT_PIXEL 5, 64
-	BLIT_PIXEL 6, 65
-	BLIT_PIXEL 7, 66
-	BLIT_PIXEL 8, 67
-_right_60_off_top_2:
-	BLIT_PIXEL 10, 128
-	BLIT_PIXEL 11, 129
-	BLIT_PIXEL 12, 130
-	BLIT_PIXEL 13, 131
-_right_60_off_top_3:
-	BLIT_PIXEL 15, 192
-	BLIT_PIXEL 16, 193
-	BLIT_PIXEL 17, 194
-	BLIT_PIXEL 18, 195
-_right_60_off_top_4:
-	BLIT_PIXEL 20, 256
-	BLIT_PIXEL 21, 257
-	BLIT_PIXEL 22, 258
-	BLIT_PIXEL 23, 259
-	j _return
-
-_right_60_off_top:
-	# if we got here, we know the x coord places the image fully onscreen horizontally.
-	# weirdly we jump back up into the previous code to handle these cases.
-	blt  a1, -4, _return
-	beq  a1, -4, _right_60_off_top_4
-	beq  a1, -3, _right_60_off_top_3
-	beq  a1, -2, _right_60_off_top_2
-	j _right_60_off_top_1
-
-_right_60_off_bottom:
-	# if we got here, we know the x coord places the image fully onscreen horizontally.
-	bge  a1, 64, _return
-	BLIT_PIXEL 0, 0
-	BLIT_PIXEL 1, 1
-	BLIT_PIXEL 2, 2
-	BLIT_PIXEL 3, 3
-	beq  a1, 63, _return
-	BLIT_PIXEL 5, 64
-	BLIT_PIXEL 6, 65
-	BLIT_PIXEL 7, 66
-	BLIT_PIXEL 8, 67
-	beq  a1, 62, _return
-	BLIT_PIXEL 10, 128
-	BLIT_PIXEL 11, 129
-	BLIT_PIXEL 12, 130
-	BLIT_PIXEL 13, 131
-	beq  a1, 61, _return
-	BLIT_PIXEL 15, 192
-	BLIT_PIXEL 16, 193
-	BLIT_PIXEL 17, 194
-	BLIT_PIXEL 18, 195
-	# here, y == 60, so skip last row.
-	j _return
-
-_right_61:
-	# x == 61 case
-	blt a1, 0,  _right_61_off_top
-	bge a1, 60, _right_61_off_bottom
-
-	BLIT_PIXEL 0, 0
-	BLIT_PIXEL 1, 1
-	BLIT_PIXEL 2, 2
-_right_61_off_top_1:
-	BLIT_PIXEL 5, 64
-	BLIT_PIXEL 6, 65
-	BLIT_PIXEL 7, 66
-_right_61_off_top_2:
-	BLIT_PIXEL 10, 128
-	BLIT_PIXEL 11, 129
-	BLIT_PIXEL 12, 130
-_right_61_off_top_3:
-	BLIT_PIXEL 15, 192
-	BLIT_PIXEL 16, 193
-	BLIT_PIXEL 17, 194
-_right_61_off_top_4:
-	BLIT_PIXEL 20, 256
-	BLIT_PIXEL 21, 257
-	BLIT_PIXEL 22, 258
-	j _return
-
-_right_61_off_top:
-	# if we got here, we know the x coord places the image fully onscreen horizontally.
-	# weirdly we jump back up into the previous code to handle these cases.
-	blt  a1, -4, _return
-	beq  a1, -4, _right_61_off_top_4
-	beq  a1, -3, _right_61_off_top_3
-	beq  a1, -2, _right_61_off_top_2
-	j _right_61_off_top_1
-
-_right_61_off_bottom:
-	# if we got here, we know the x coord places the image fully onscreen horizontally.
-	bge  a1, 64, _return
-	BLIT_PIXEL 0, 0
-	BLIT_PIXEL 1, 1
-	BLIT_PIXEL 2, 2
-	beq  a1, 63, _return
-	BLIT_PIXEL 5, 64
-	BLIT_PIXEL 6, 65
-	BLIT_PIXEL 7, 66
-	beq  a1, 62, _return
-	BLIT_PIXEL 10, 128
-	BLIT_PIXEL 11, 129
-	BLIT_PIXEL 12, 130
-	beq  a1, 61, _return
-	BLIT_PIXEL 15, 192
-	BLIT_PIXEL 16, 193
-	BLIT_PIXEL 17, 194
-	# here, y == 60, so skip last row.
-	j _return
-
-_right_62:
-	# x == 62 case
-	blt a1, 0,  _right_62_off_top
-	bge a1, 60, _right_62_off_bottom
-
-	BLIT_PIXEL 0, 0
-	BLIT_PIXEL 1, 1
-_right_62_off_top_1:
-	BLIT_PIXEL 5, 64
-	BLIT_PIXEL 6, 65
-_right_62_off_top_2:
-	BLIT_PIXEL 10, 128
-	BLIT_PIXEL 11, 129
-_right_62_off_top_3:
-	BLIT_PIXEL 15, 192
-	BLIT_PIXEL 16, 193
-_right_62_off_top_4:
-	BLIT_PIXEL 20, 256
-	BLIT_PIXEL 21, 257
-	j _return
-
-_right_62_off_top:
-	# if we got here, we know the x coord places the image fully onscreen horizontally.
-	# weirdly we jump back up into the previous code to handle these cases.
-	blt  a1, -4, _return
-	beq  a1, -4, _right_62_off_top_4
-	beq  a1, -3, _right_62_off_top_3
-	beq  a1, -2, _right_62_off_top_2
-	j _right_62_off_top_1
-
-_right_62_off_bottom:
-	# if we got here, we know the x coord places the image fully onscreen horizontally.
-	bge  a1, 64, _return
-	BLIT_PIXEL 0, 0
-	BLIT_PIXEL 1, 1
-	beq  a1, 63, _return
-	BLIT_PIXEL 5, 64
-	BLIT_PIXEL 6, 65
-	beq  a1, 62, _return
-	BLIT_PIXEL 10, 128
-	BLIT_PIXEL 11, 129
-	beq  a1, 61, _return
-	BLIT_PIXEL 15, 192
-	BLIT_PIXEL 16, 193
-	# here, y == 60, so skip last row.
-	j _return
-
-_right_63:
-	# x == 63 case
-	blt a1, 0,  _right_63_off_top
-	bge a1, 60, _right_63_off_bottom
-
-	BLIT_PIXEL 0, 0
-_right_63_off_top_1:
-	BLIT_PIXEL 5, 64
-_right_63_off_top_2:
-	BLIT_PIXEL 10, 128
-_right_63_off_top_3:
-	BLIT_PIXEL 15, 192
-_right_63_off_top_4:
-	BLIT_PIXEL 20, 256
-	j _return
-
-_right_63_off_top:
-	# if we got here, we know the x coord places the image fully onscreen horizontally.
-	# weirdly we jump back up into the previous code to handle these cases.
-	blt  a1, -4, _return
-	beq  a1, -4, _right_63_off_top_4
-	beq  a1, -3, _right_63_off_top_3
-	beq  a1, -2, _right_63_off_top_2
-	j _right_63_off_top_1
-
-_right_63_off_bottom:
-	# if we got here, we know the x coord places the image fully onscreen horizontally.
-	bge  a1, 64, _return
-	BLIT_PIXEL 0, 0
-	beq  a1, 63, _return
-	BLIT_PIXEL 5, 64
-	beq  a1, 62, _return
-	BLIT_PIXEL 10, 128
-	beq  a1, 61, _return
-	BLIT_PIXEL 15, 192
-	# here, y == 60, so skip last row.
-
-_return:
-	jr ra
+	jr       ra
 
 # -------------------------------------------------------------------------------------------------
 # draw a character pattern to the display. unlike graphical patterns, these are bitmasks:
