@@ -1,7 +1,7 @@
 # author Jacob Sharp
 
 # Directions
-.eqv DIR_NONE	0
+.eqv DIR_0	0 # use zero register
 .eqv DIR_N	1
 .eqv DIR_E	2
 .eqv DIR_S	3
@@ -16,6 +16,9 @@
 # Moves
 .eqv MAX_MOVES 200
 
+# MIPS
+.eqv BYTE_SIZE 1
+
 # ------------------------------------------------------------------------------------------------
 
 .data
@@ -27,25 +30,11 @@
 	player_y: .byte 2
 	player_dir: .word 0
 	
-	# grid
-	level: .byte
-		0 0 1 1 1 1 1 0 0 0 0 0
-		1 1 1 0 0 0 1 0 0 0 0 0
-		1 3 5 2 0 0 1 0 0 0 0 0
-		1 1 1 0 2 3 1 0 0 0 0 0
-		1 3 1 1 2 0 1 1 0 0 0 0
-		1 0 1 0 3 0 0 1 0 0 0 0
-		1 2 0 4 2 2 3 1 0 0 0 0
-		1 0 0 0 3 0 0 1 0 0 0 0
-		1 1 1 1 1 1 1 1 0 0 0 0
-		0 0 0 0 0 0 0 0 0 0 0 0
-		0 0 0 0 0 0 0 0 0 0 0 0
-	
 	# A pair of arrays, indexed by direction, to turn a direction into x/y deltas.
 	# e.g. direction_delta_x[DIR_E] is 1, because moving east increments X by 1.
-	#                         NA  N  E  S  W
-	direction_delta_x: .byte   0  0  1  0 -1
-	direction_delta_y: .byte   0 -1  0  1  0
+	#                        N/A  N  E  S  W
+	direction_delta_x: .byte  0   0  1  0 -1
+	direction_delta_y: .byte  0  -1  0  1  0
 
 .text
 	
@@ -53,6 +42,7 @@
 
 .include "utilities/display.asm"
 .include "utilities/soku_textures.asm"
+.include "utilities/soku_levels.asm"
 		
 .text
 
@@ -62,7 +52,7 @@
 main:
 	# pause for user to begin
 	jal wait_for_game_start
-
+	
 	_game_loop:
 		jal	check_input
 		jal move_player
@@ -176,7 +166,6 @@ compute_next_player_pos:
 	pop_state # return v0, v1
 	jr ra
 
-# ------------------------------------------------------------------------------------------------
 
 move_block:
 	push_state
@@ -195,14 +184,66 @@ draw_all:
 	
 	pop_state
 	jr ra
-
+# ------------------------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------------------------# ------------------------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------------------------
 
 draw_walls:
-	push_state
+	push_state s0, s1, s2
 	
-	pop_state
+	# draw each block for the current level
+	la s0, level
+	li s1, 0 # i
+	_matrix:
+	bge s1, GRID_WIDTH, _matrix_end
+		li s2, 0 # j
+		_matrix_inner:
+		bge s2, GRID_HEIGHT, _matrix_inner_end
+			# level[i][j]
+			move a0, s0
+			move a1, s2
+			move a2, s1
+			li a3, GRID_WIDTH
+			jal matrix_element_address
+			lb t0, (v0)
+			
+			#print_int t0
+			#print_chari ' '
+			
+			# check if it is a block
+			beq zero, t0, _next_spot
+				# calculate the location
+				mul a0, s1, GRID_CELL_SIZE
+				mul a1, s2, GRID_CELL_SIZE
+				
+				# draw the block
+				la a2, tex_wall
+				jal display_blit_5x5_trans
+			
+			
+			_next_spot:
+			addi s2, s2, 1
+			j _matrix_inner
+		_matrix_inner_end:
+		
+		addi s1, s1, 1
+		j _matrix
+	_matrix_end:
+	
+	#exit
+	
+	pop_state s0, s1, s2
 	jr ra
 
+# ------------------------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------------------------# ------------------------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------------------------
 
 draw_targets:
 	push_state
@@ -220,15 +261,14 @@ draw_blocks:
 draw_player:
 	push_state
 	
-	# player coordinates
+	# calculate the location
 	lb t0, player_x
 	mul a0, t0, GRID_CELL_SIZE
 	lb t0 player_y
 	mul a1, t0, GRID_CELL_SIZE
 
-	# texture
+	# draw the player
 	la a2, tex_player
-
 	jal display_blit_5x5_trans
 	
 	pop_state
@@ -365,4 +405,23 @@ show_game_start_message:
 	jal	display_draw_text
 	
 	pop_state
+	jr ra
+
+
+# ------------------------------------------------------------------------------------------------
+	
+# This function calculates the address of the element (i, j) in a matrix of words
+# Inputs:
+#	 a0: The base address of the matrix
+#	 a1: The index (i) of the row
+#	 a2: The index (j) of the column
+#	 a3: The number of elements in a row
+# Outputs:
+#	 v0: The address of the element
+matrix_element_address:
+	mul v0, a3, BYTE_SIZE
+	mul v0, a1, v0 			# [i][0]
+	mul t0, a2, BYTE_SIZE	# [0][j]
+	add v0, v0, t0			# [i][j]
+	add v0, a0, v0			# a[i][j]
 	jr ra
