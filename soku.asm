@@ -79,7 +79,9 @@ move_player:
 	push_state s0, s1
 	
 	# compute next position
-	jal compute_next_player_pos
+	lb a0, player_x
+	lb a1, player_y
+	jal compute_next_pos
 	move s0, v0
 	move s1, v1
 	
@@ -102,6 +104,16 @@ move_player:
 	
 	beq t0, 1, _invalid_move
 	
+	# check if block collision
+	move a0, s0
+	move a1, s1
+	jal check_block_collision
+	
+	bne v0, 1, _move_forward
+		# block at location
+		j _invalid_move #TEMPORARY
+	
+	
 	_move_forward: # legal move
 		# update player coordinates
 		sb s0, player_x
@@ -118,25 +130,77 @@ move_player:
 	_invalid_move:
 	pop_state s0, s1
 		
-	_return: # does not update position
+	_return: # does not update position if jump
 	jr ra
 
-compute_next_player_pos:
+
+# a0 - x-coordinate (byte)
+# a1 - y-coordinate (byte)
+# v0, v1 - x and y coordinates of destination
+compute_next_pos:
 	push_state
 	
-	lw t9, player_dir
+	lw t0, player_dir
 
-	# v0 = direction_delta_x[snake_dir]
-	lb v0, player_x
-	lb t0, direction_delta_x(t9)
-	add v0, v0, t0
+	# v0 = direction_delta_x[player_dir]
+	lb t1, direction_delta_x(t0)
+	add v0, a0, t1
 
-	# v1 = direction_delta_y[snake_dir]
+	# v1 = direction_delta_y[player_dir]
 	lb v1, player_y
-	lb t0, direction_delta_y(t9)
-	add v1, v1, t0
+	lb t1, direction_delta_y(t0)
+	add v1, a1, t1
 	
-	pop_state # return v0, v1
+	pop_state
+	jr ra
+
+
+# a0 - x-coord of next location
+# a1 - y-coord of next location
+# returns v0 1 for true or 0 for false
+check_block_collision:
+	push_state s0, s1, s2, s3, s4, s5
+	move s4, a0 #TODO change to s0/s1 and minimize saved regs
+	move s5, a1
+	
+	# determine number of blocks
+	la s0, array_of_blocks
+	lb s1, (s0) # number of blocks
+	
+	# draw each block
+	addi s0, s0, BYTE_SIZE
+	li s2, 0 # i
+	_loop:
+	bge s2, s1, _loop_end
+		mul s3, s2, 3 # block start located at [3i]
+		
+		# block x and y coordinates
+		move a0, s0
+		move a1, s3
+		jal array_element_address
+		lb t0, (v0) # x-coord
+		
+		addi v0, v0, BYTE_SIZE
+		lb t1, (v0) # y-coord
+		
+		# check block collision
+		bne s4, t0, _next_block
+		bne s5, t1, _next_block
+		
+			# collision happened
+			li v0, 1
+			j _return
+		
+		# check next block
+		_next_block:
+		increment s2
+		j _loop
+	
+	_loop_end:
+	li v0, 0
+	
+	_return:
+	pop_state s0, s1, s2, s3, s4, s5
 	jr ra
 
 
@@ -166,7 +230,7 @@ draw_all:
 draw_level:
 	push_state s0, s1, s2
 	
-	# draw each block for the current level
+	# draw each component for the current level
 	la s0, level
 	li s1, 0 # i
 	_matrix:
@@ -194,7 +258,7 @@ draw_level:
 				mul a0, s1, GRID_CELL_SIZE
 				mul a1, s2, GRID_CELL_SIZE
 				
-				# draw the block
+				# draw the wall
 				la a2, tex_wall
 				jal display_blit_5x5_trans
 				
@@ -205,13 +269,13 @@ draw_level:
 				mul a0, s1, GRID_CELL_SIZE
 				mul a1, s2, GRID_CELL_SIZE
 				
-				# draw the block
+				# draw the target
 				la a2, tex_target
 				jal display_blit_5x5_trans
 				
 				j _next_spot
 			
-			# move to next spot
+			# move to next
 			_next_spot:
 			increment s2
 			j _matrix_inner
