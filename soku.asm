@@ -66,11 +66,25 @@ main:
 
 	jal show_game_over_message
 	exit
+
+
+# waits for the user to press a key to start the game
+wait_for_game_start:
+	push_state
+	_loop: # while no keys are pressed
+		jal show_game_start_message
+		jal display_update_and_clear
+		jal wait_for_next_frame
+		jal input_get_keys_pressed
+		beq v0, 0, _loop # != 0 when key pressed
+	pop_state
+	jr ra
 	
 # ------------------------------------------------------------------------------------------------
-# ----------------------------------  Movement  -----------------------------------------
+# ----------------------------------  Movement  --------------------------------------------------
 # ------------------------------------------------------------------------------------------------
-	
+
+# moves the player legally based on arrow pressed arrow keys
 move_player:
 	# check if a key was pressed
 	lw t0, player_dir
@@ -134,27 +148,6 @@ move_player:
 	jr ra
 
 
-# a0 - x-coordinate (byte)
-# a1 - y-coordinate (byte)
-# v0, v1 - x and y coordinates of destination
-compute_next_pos:
-	push_state
-	
-	lw t0, player_dir
-
-	# v0 = direction_delta_x[player_dir]
-	lb t1, direction_delta_x(t0)
-	add v0, a0, t1
-
-	# v1 = direction_delta_y[player_dir]
-	lb v1, player_y
-	lb t1, direction_delta_y(t0)
-	add v1, a1, t1
-	
-	pop_state
-	jr ra
-
-
 # a0 - x-coord of next location
 # a1 - y-coord of next location
 # returns v0 1 for true or 0 for false
@@ -202,18 +195,12 @@ check_block_collision:
 	_return:
 	pop_state s0, s1, s2, s3, s4, s5
 	jr ra
-
-
-move_block:
-	push_state
-	
-	pop_state
-	jr ra
 	
 # ------------------------------------------------------------------------------------------------
-# ----------------------------------  Drawing  -----------------------------------------
+# ----------------------------------  Drawing  ---------------------------------------------------
 # ------------------------------------------------------------------------------------------------
 
+# displays on MIPS Keypad and LED Simulator the game of Soku
 draw_all:
 	push_state
 	
@@ -226,7 +213,7 @@ draw_all:
 	jr ra
 
 
-# Draws the map's walls and targets.
+# displays on Simulator the map's walls and targets
 draw_level:
 	push_state s0, s1, s2
 	
@@ -291,6 +278,7 @@ draw_level:
 	pop_state s0, s1, s2
 	jr ra
 
+# displays on Simulator the movable blocks
 draw_blocks:
 	push_state s0, s1, s2, s3
 	
@@ -340,7 +328,7 @@ draw_blocks:
 	pop_state s0, s1, s2, s3
 	jr ra
 	
-
+# displays on Simulator the user-controlled player
 draw_player:
 	push_state
 	
@@ -357,6 +345,7 @@ draw_player:
 	pop_state
 	jr ra
 
+# displays on Simulator the heads up showing the move count
 draw_hud:
 	push_state
 	
@@ -382,12 +371,51 @@ draw_hud:
 	
 	pop_state
 	jr ra
-	
+
 # ------------------------------------------------------------------------------------------------
-# ----------------------------------  Game Start and End  -----------------------------------------
+# ----------------------------------  Calculations  ----------------------------------------------
 # ------------------------------------------------------------------------------------------------
 	
-# returns 1 if the game is over
+# checks for the arrow keys to change the player's direction
+check_input:
+	push_state
+
+	# determine which key was pressed
+	jal input_get_keys_pressed
+	beq v0, KEY_U, _north
+	beq v0, KEY_D, _south
+	beq v0, KEY_R, _east
+	beq v0, KEY_L, _west
+	j _break
+
+	# set a new direction
+	_north:
+		li t0, DIR_N
+		sw t0, player_dir
+		j _break
+
+	_south:
+		li t0, DIR_S
+		sw t0, player_dir
+		j _break
+
+	_east:
+		li t0, DIR_E
+		sw t0, player_dir
+		j _break
+
+	_west:
+		li t0, DIR_W
+		sw t0, player_dir
+		j _break
+
+	_break:
+	pop_state
+	jr ra
+
+
+# checks if the game is over
+# returns v0 - 1 when game is over, 0 otherwise
 check_game_over:
 	push_state
 	
@@ -410,6 +438,65 @@ check_game_over:
 	pop_state
 	jr ra
 
+
+# a0 - x-coordinate (byte)
+# a1 - y-coordinate (byte)
+# v0, v1 - x and y coordinates of destination
+compute_next_pos:
+	push_state
+	
+	lw t0, player_dir
+
+	# v0 = direction_delta_x[player_dir]
+	lb t1, direction_delta_x(t0)
+	add v0, a0, t1
+
+	# v1 = direction_delta_y[player_dir]
+	lb v1, player_y
+	lb t1, direction_delta_y(t0)
+	add v1, a1, t1
+	
+	pop_state
+	jr ra
+
+
+# ------------------------------------------------------------------------------------------------
+# ----------------------------------  Game Messages  ---------------------------------------------
+# ------------------------------------------------------------------------------------------------
+
+# displays on Simulator message on how to start the game
+show_game_start_message:
+	push_state
+	
+	# draw underlined SOKU
+	li	a0, 30
+	li	a1, 5
+	la_string	a2, "Soku!"
+	jal	display_draw_text
+	li  a0, 0
+	li  a1, 15
+	li  a2, DISPLAY_W
+	li  a3, COLOR_LIGHT_GREY
+	jal display_draw_hline
+	
+	# draw instructions to start
+	li	a0, 5
+	li	a1, 20
+	la_string	a2, "press any"
+	jal	display_draw_text
+	li	a0, 10
+	li	a1, 28
+	la_string	a2, "-> key"
+	jal	display_draw_text
+	li	a0, 5
+	li	a1, 36
+	la_string	a2, "to begin"
+	jal	display_draw_text
+	
+	pop_state
+	jr ra
+
+# shows on Simulator a game over message
 show_game_over_message:
 	push_state
 	
@@ -448,54 +535,10 @@ show_game_over_message:
 	jr ra
 
 
-# waits for the user to press a key to start the game
-wait_for_game_start:
-	push_state
-	_loop: # while no keys are pressed
-		jal show_game_start_message
-		jal display_update_and_clear
-		jal wait_for_next_frame
-		jal input_get_keys_pressed
-		beq v0, 0, _loop # != 0 when key pressed
-	pop_state
-	jr ra
-
-show_game_start_message:
-	push_state
-	
-	# draw underlined SOKU
-	li	a0, 30
-	li	a1, 5
-	la_string	a2, "Soku!"
-	jal	display_draw_text
-	li  a0, 0
-	li  a1, 15
-	li  a2, DISPLAY_W
-	li  a3, COLOR_LIGHT_GREY
-	jal display_draw_hline
-	
-	# draw instructions to start
-	li	a0, 5
-	li	a1, 20
-	la_string	a2, "press any"
-	jal	display_draw_text
-	li	a0, 10
-	li	a1, 28
-	la_string	a2, "key to"
-	jal	display_draw_text
-	li	a0, 20
-	li	a1, 36
-	la_string	a2, "begin"
-	jal	display_draw_text
-	
-	pop_state
-	jr ra
-
-
 # ------------------------------------------------------------------------------------------------
-# ----------------------------------  Calculations  -----------------------------------------
+# ----------------------------------  Indexing  --------------------------------------------------
 # ------------------------------------------------------------------------------------------------
-
+	
 # This function calculates the address an element in a array of words
 # Inputs:
 #	 a0: The base address of the array
@@ -507,7 +550,7 @@ array_element_address:
 	add v0, a0, t0
 	jr ra
 
-# This function calculates the address of the element (i, j) in a matrix of words
+# Calculates the address of the element (i, j) in a matrix of words
 # Inputs:
 #	 a0: The base address of the matrix
 #	 a1: The index (i) of the row
@@ -521,41 +564,4 @@ matrix_element_address:
 	mul t0, a2, BYTE_SIZE	# [0][j]
 	add v0, v0, t0			# [i][j]
 	add v0, a0, v0			# a[i][j]
-	jr ra
-	
-# checks for the arrow keys to change the snake's direction.
-check_input:
-	push_state
-
-	# determine which key was pressed
-	jal input_get_keys_pressed
-	beq v0, KEY_U, _north
-	beq v0, KEY_D, _south
-	beq v0, KEY_R, _east
-	beq v0, KEY_L, _west
-	j _break
-
-	# set a new direction
-	_north:
-		li t0, DIR_N
-		sw t0, player_dir
-		j _break
-
-	_south:
-		li t0, DIR_S
-		sw t0, player_dir
-		j _break
-
-	_east:
-		li t0, DIR_E
-		sw t0, player_dir
-		j _break
-
-	_west:
-		li t0, DIR_W
-		sw t0, player_dir
-		j _break
-
-	_break:
-	pop_state
 	jr ra
