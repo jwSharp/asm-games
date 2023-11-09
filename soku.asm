@@ -9,7 +9,7 @@
 
 # Grid
 .eqv GRID_CELL_SIZE 5 # pixels
-.eqv GRID_WIDTH  12 # cells
+.eqv GRID_WIDTH  13 # cells
 .eqv GRID_HEIGHT 11 # cells
 .eqv GRID_CELLS 132 # = GRID_WIDTH * GRID_HEIGHT
 
@@ -102,8 +102,6 @@ move_player:
 	
 	beq t0, 1, _invalid_move
 	
-	
-	
 	_move_forward: # legal move
 		# update player coordinates
 		sb s0, player_x
@@ -184,14 +182,12 @@ draw_level:
 			jal matrix_element_address
 			lb t0, (v0)
 			
-			#print_int t0
-			#print_chari ' '
-			
 			beq t0, 0, _next_spot
 			
 			# draw walls and targets
 			beq t0, 1, _draw_wall
 			beq t0, 2, _draw_target
+			j _next_spot # ignore
 				
 			_draw_wall:
 				# calculate the location
@@ -215,25 +211,69 @@ draw_level:
 				
 				j _next_spot
 			
-			
+			# move to next spot
 			_next_spot:
-			addi s2, s2, 1
+			increment s2
 			j _matrix_inner
+
 		_matrix_inner_end:
 		
-		addi s1, s1, 1
+		# move to next row
+		increment s1
 		j _matrix
+		
 	_matrix_end:
-	
-	#exit
 	
 	pop_state s0, s1, s2
 	jr ra
 
 draw_blocks:
-	push_state
+	push_state s0, s1, s2, s3
 	
-	pop_state
+	# determine number of blocks
+	la s0, array_of_blocks
+	lb s1, (s0) # number of blocks
+	
+	# draw each block
+	addi s0, s0, BYTE_SIZE
+	li s2, 0 # i
+	_loop:
+	bge s2, s1, _loop_end
+		mul s3, s2, 3 # block start located at [3i]
+		
+		# x and y coordinate
+		move a0, s0
+		move a1, s3
+		jal array_element_address
+		lb a0, (v0)
+		mul a0, a0, GRID_CELL_SIZE
+		
+		addi v0, v0, BYTE_SIZE
+		lb a1, (v0)
+		mul a1, a1, GRID_CELL_SIZE
+		
+		# check if on target
+		addi v0, v0, BYTE_SIZE
+		lb t0, (v0)
+		
+		beq t0, 0, _not_on_target
+			la a2, tex_block_on_target # block on target
+			j _blit_block
+		
+		_not_on_target:
+			la a2, tex_block # block not on target
+		
+		# draw the block
+		_blit_block:
+		jal display_blit_5x5_trans
+		
+		# move to next block
+		increment s2
+		j _loop
+	
+	_loop_end:
+	
+	pop_state s0, s1, s2, s3
 	jr ra
 	
 
@@ -391,6 +431,18 @@ show_game_start_message:
 # ------------------------------------------------------------------------------------------------
 # ----------------------------------  Calculations  -----------------------------------------
 # ------------------------------------------------------------------------------------------------
+
+# This function calculates the address an element in a array of words
+# Inputs:
+#	 a0: The base address of the array
+#	 a1: The index of the element
+# Outputs:
+#	 v0: The address of the element
+array_element_address:
+	mul t0, a1, BYTE_SIZE # offset
+	add v0, a0, t0
+	jr ra
+
 # This function calculates the address of the element (i, j) in a matrix of words
 # Inputs:
 #	 a0: The base address of the matrix
