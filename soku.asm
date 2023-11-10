@@ -22,7 +22,7 @@
 # ------------------------------------------------------------------------------------------------
 
 .data
-	lost_game: .word 0 # 1 if player lost game
+	lost_game: .byte 0 # 1 if player lost game
 	moves_taken: .word 0
 	
 	# player
@@ -62,8 +62,7 @@ main:
 		
 		# check for loss
 		jal check_game_over
-		j _game_loop #DEBUG
-		#beq v0, 0, _game_loop
+		beq v0, 0, _game_loop
 
 	jal show_game_over_message
 	exit
@@ -458,27 +457,72 @@ check_input:
 # returns 1 when game is over, 0 otherwise
 check_game_over:
 	push_state
-
-	# check user hit the maximum moves
-	lw t0, moves_taken
-	blt t0, MAX_MOVES, _endif
-		li v0, 1
-		j _return
-	_endif:
-
-	# update game status
-	lw t0, lost_game
-	beq t0, 0, _return
-		# game over
-		li v0, 1
-		j _return
+	
+	_targets:
+	# check if all blocks are on target
+	jal check_blocks_on_targets
+	beq v0, 0, _continue_game
+		j _end_game # all blocks are on the targets
 	
 	# game continues
-	li v0, 0
+	_continue_game:
+		li v0, 0
+		j _return
 	
-	_return: # return v0
+	_end_game:
+		li v0, 1
 	
+	_return:
 	pop_state
+	jr ra
+
+
+# checks that all blocks are located on a target #--------------------------------------------------------------------------------------------------------------------
+# returns 1 when they are all on targets, 0 otherwise
+check_blocks_on_targets:
+	push_state s0, s1, s2, s3
+	
+	# determine number of blocks
+	la s0, array_of_blocks
+	lb s1, (s0) # number of blocks
+	
+	# draw each block
+	addi s0, s0, BYTE_SIZE
+	li s2, 0 # i
+	_loop:
+	bge s2, s1, _loop_end
+		mul s3, s2, 3 # block start located at [3i]
+		
+		# calculate the block struct address
+		move a0, s0
+		move a1, s3
+		jal array_element_address
+		
+		# check if on target
+		li t0, BYTE_SIZE
+		mul t0, t0, 2
+		add v0, v0, t0 # located 2 bytes
+		lb t0, (v0)
+		
+		beq t0, 0, _not_on_target
+			j _next_block
+		
+		# move to next block
+		_next_block:
+		increment s2
+		j _loop
+	
+	_loop_end:
+	
+	# all blocks are on targets
+	li v0, 1
+	j _return
+	
+	_not_on_target:
+		li v0, 0
+	
+	_return:
+	pop_state s0, s1, s2, s3
 	jr ra
 
 
@@ -555,19 +599,7 @@ check_target_location:
 	la a0, level
 	li a3, GRID_WIDTH
 	jal matrix_element_address
-	
-	#DEBUG
-	print_int a1
-	print_int a2
-	print_newline
-	print_int a0
-	print_newline
-	print_int v0
-	
 	lb v0, (v0)
-	
-	print_newline
-	print_int v0
 	
 	# check if it is a target
 	beq v0, 2, _target
@@ -697,7 +729,7 @@ show_game_over_message:
 	jal display_update_and_clear
 
 	# check if game was lost
-	lw t0, lost_game
+	lb t0, lost_game
 	bne t0, 0, _lost
 		# game won
 		li   a0, 7
