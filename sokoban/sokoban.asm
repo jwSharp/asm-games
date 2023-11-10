@@ -37,10 +37,10 @@
 
 .include "../utilities/display.asm"
 
-.include "soku_player.asm"
-.include "soku_blocks.asm"
-.include "soku_levels.asm"
-.include "soku_textures.asm"
+.include "sokoban_player.asm"
+.include "sokoban_blocks.asm"
+.include "sokoban_levels.asm"
+.include "sokoban_textures.asm"
 
 .text
 
