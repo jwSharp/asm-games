@@ -216,12 +216,12 @@ move_block:
 			# check if landed on/ moved off of a target
 			move s1, t1 # save
 			
-			move a0, s2
-			move a1, s3
+			move a0, s6
+			move a1, s7
 			jal check_target_location
 			
 			# update block's is_on_target
-			addi t0, s1, BYTE_SIZE
+			addi t0, t1, BYTE_SIZE
 			sb v0, (t0)
 			
 			j _loop_end
@@ -550,16 +550,24 @@ check_wall_collision:
 check_target_location:
 	push_state
 	
-	move t0, a0
-	move t1, a1
-	
-	# find grid value
+	# level[i][j]
+	move a2, a0 # a1: y-coord, a2: x-coord
 	la a0, level
-	move a1, t1 # y axis
-	move a2, t0 # x axis
 	li a3, GRID_WIDTH
 	jal matrix_element_address
+	
+	#DEBUG
+	print_int a1
+	print_int a2
+	print_newline
+	print_int a0
+	print_newline
+	print_int v0
+	
 	lb v0, (v0)
+	
+	print_newline
+	print_int v0
 	
 	# check if it is a target
 	beq v0, 2, _target
