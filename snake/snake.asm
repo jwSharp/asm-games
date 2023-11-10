@@ -1,8 +1,9 @@
 # author Jacob Sharp
 
-.include "utilities/display.asm"
+.include "../utilities/display.asm"
 
 .include "snake_textures.asm"
+
 .text
 
 # ------------------------------------------------------------------------------------------------

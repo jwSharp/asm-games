@@ -35,7 +35,7 @@
 
 # ------------------------------------------------------------------------------------------------
 
-.include "utilities/display.asm"
+.include "../utilities/display.asm"
 
 .include "soku_player.asm"
 .include "soku_blocks.asm"
