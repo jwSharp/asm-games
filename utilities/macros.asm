@@ -1,6 +1,39 @@
 # author Jacob Sharp
 
+# ---------- INDEXING ----------
+.eqv BYTE_SIZE 1
+.eqv WORD_SIZE 4
+
+# This function calculates the address an element in a array of words
+# Inputs:
+#	 a0: The base address of the array
+#	 a1: The index of the element
+# Outputs:
+#	 v0: The address of the element
+array_element_address:
+	mul t0, a1, BYTE_SIZE # offset
+	add v0, a0, t0
+	jr ra
+
+# Calculates the address of the element (i, j) in a matrix of words
+# Inputs:
+#	 a0: The base address of the matrix
+#	 a1: The index (i) of the row
+#	 a2: The index (j) of the column
+#	 a3: The number of elements in a row
+# Outputs:
+#	 v0: The address of the element
+matrix_element_address:
+	mul v0, a3, BYTE_SIZE
+	mul v0, a1, v0 			# [i][0]
+	mul t0, a2, BYTE_SIZE	# [0][j]
+	add v0, v0, t0			# [i][j]
+	add v0, a0, v0			# a[i][j]
+	jr ra
+
+
 # ---------- PRINTING ----------
+
 # Prints a newline.
 .macro print_newline
 	print_chari '\n'
@@ -112,7 +145,6 @@
 	pop v0
 .end_macro
 
-
 # Prints an integer in hexidecimal from a register
 .macro print_hex (%int)
 	push v0
@@ -128,6 +160,7 @@
 
 
 # ---------- INPUT ----------
+
 # Prompt integer input. Stored in v0.
 .macro input_int
 	li v0, 5
@@ -145,6 +178,7 @@
 
 
 # ---------- FUNCTIONS ----------
+
 # Push ra to the stack.
 .macro push_state
 	addi sp, sp, -4
@@ -327,6 +361,7 @@
 
 
 # ---------- MATH ----------
+
 .macro increment (%address)
 	addi %address, %address, 1
 .end_macro
@@ -345,6 +380,7 @@
 
 
 # ---------- GENERAL ----------
+
 # End the program.
 .macro exit
 	li v0, 10
