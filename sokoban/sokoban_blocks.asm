@@ -16,34 +16,38 @@
 	#		block y-coord
 	#		block is_on_target
 	array_of_blocks:
-		.byte 7
+		.byte 8
 	
 		.byte 3
 		.byte 2
 		.byte 0
 		
+		.byte 2
+		.byte 3
+		.byte 0
+
 		.byte 4
 		.byte 3
 		.byte 0
 		
+		.byte 3
 		.byte 4
-		.byte 4
-		.byte 0
-		
-		.byte 1
-		.byte 6
 		.byte 0
 		
 		.byte 3
 		.byte 6
-		.byte 1
-		
-		.byte 4
-		.byte 6
 		.byte 0
 		
-		.byte 5
-		.byte 6
+		.byte 2
+		.byte 7
+		.byte 0
+		
+		.byte 4
+		.byte 7
+		.byte 0
+
+		.byte 3
+		.byte 8
 		.byte 0
 
 .text

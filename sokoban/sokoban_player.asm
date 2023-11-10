@@ -10,8 +10,8 @@
 # ------------------------------------------------------------------------------------------------
 
 .data
-	player_x: .byte 2
-	player_y: .byte 2
+	player_x: .byte 1
+	player_y: .byte 1
 	player_dir: .word 0
 	
 .text
