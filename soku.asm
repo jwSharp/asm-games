@@ -62,7 +62,8 @@ main:
 		
 		# check for loss
 		jal check_game_over
-		beq v0, 0, _game_loop
+		j _game_loop #DEBUG
+		#beq v0, 0, _game_loop
 
 	jal show_game_over_message
 	exit
@@ -117,9 +118,8 @@ move_player:
 	move a0, s0
 	move a1, s1
 	jal check_block_collision
-	
 	beq v0, 0, _move_forward
-		# block collision occurred
+		# block collision occurred		
 	
 		# compute block's new location if pushed
 		move a0, s0
@@ -199,18 +199,31 @@ move_block:
 		move a0, s0
 		move a1, s3
 		jal array_element_address
-		lb t0, (v0) # x-coord
+		move t0, v0
+		lb t2, (t0) # x-coord
 		
-		addi v1, v0, BYTE_SIZE
-		lb t1, (v1) # y-coord
+		addi t1, v0, BYTE_SIZE
+		lb t3, (t1) # y-coord
 		
 		# check for block
-		bne s4, t0, _next_block
-		bne s5, t1, _next_block
+		bne s4, t2, _next_block
+		bne s5, t3, _next_block
 		
 			# block at coordinates
-			sb s6, (v0)
-			sb s7, (v1)
+			sb s6, (t0)
+			sb s7, (t1)
+			
+			# check if landed on/ moved off of a target
+			move s1, t1 # save
+			
+			move a0, s2
+			move a1, s3
+			jal check_target_location
+			
+			# update block's is_on_target
+			addi t0, s1, BYTE_SIZE
+			sb v0, (t0)
+			
 			j _loop_end
 		
 		# check next block
@@ -442,11 +455,9 @@ check_input:
 
 
 # checks if the game is over
-# returns v0 - 1 when game is over, 0 otherwise
+# returns 1 when game is over, 0 otherwise
 check_game_over:
 	push_state
-	
-	li v0, 0
 
 	# check user hit the maximum moves
 	lw t0, moves_taken
@@ -455,10 +466,15 @@ check_game_over:
 		j _return
 	_endif:
 
-	# update lost_game
+	# update game status
 	lw t0, lost_game
 	beq t0, 0, _return
+		# game over
 		li v0, 1
+		j _return
+	
+	# game continues
+	li v0, 0
 	
 	_return: # return v0
 	
@@ -467,8 +483,8 @@ check_game_over:
 
 
 # check if (x,y) outside of grid
-# a0 - x-coord of next location
-# a1 - y-coord of next location
+# a0 - x-coord of location
+# a1 - y-coord of location
 # returns 1 if outside the grid or 0 otherwise
 check_outside_grid:
 	push_state
@@ -496,24 +512,64 @@ check_outside_grid:
 	jr ra
 
 
-# check if (x,y) collides with a wall
-# a0 - x-coord of next location
-# a1 - y-coord of next location
-# returns 1 if coordinate collides or 0 otherwise
+# check if a wall is located at (x,y)
+# a0 - x-coord of location
+# a1 - y-coord of location
+# returns 1 if there is a wall, 0 otherwise
 check_wall_collision:
 	push_state
 	
 	move t0, a0
 	move t1, a1
 	
-	# check if grid position is a wall
+	# find grid value
 	la a0, level
 	move a1, t1 # y axis
 	move a2, t0 # x axis
 	li a3, GRID_WIDTH
 	jal matrix_element_address
-	lb t0, (v0)
+	lb v0, (v0)
 	
+	# check if it is a wall
+	beq v0, 1, _wall
+		li v0, 0
+		j _return
+	
+	_wall:
+		li v0, 1
+	
+	_return:
+	pop_state
+	jr ra
+
+
+# check if a target is located at (x,y)
+# a0 - x-coord of location
+# a1 - y-coord of location
+# returns 1 if there is a target, 0 otherwise
+check_target_location:
+	push_state
+	
+	move t0, a0
+	move t1, a1
+	
+	# find grid value
+	la a0, level
+	move a1, t1 # y axis
+	move a2, t0 # x axis
+	li a3, GRID_WIDTH
+	jal matrix_element_address
+	lb v0, (v0)
+	
+	# check if it is a target
+	beq v0, 2, _target
+		li v0, 0
+		j _return
+	
+	_target:
+		li v0, 1
+	
+	_return:
 	pop_state
 	jr ra
 
