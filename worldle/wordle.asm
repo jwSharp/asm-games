@@ -1,7 +1,8 @@
 # author Jacob Sharp
 
-.include "utilities/macros.asm"
-.include "utilities/wordle_word_list.asm"
+.include "../utilities/macros.asm"
+
+.include "wordle_word_list.asm"
 
 # ------------------------------------------------------------------------------------------------
 
