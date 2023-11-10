@@ -1,3 +1,5 @@
+# author Jacob Sharp
+
 .data
 words:
 	.asciiz "write"
