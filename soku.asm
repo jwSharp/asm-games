@@ -62,7 +62,8 @@ main:
 		
 		# check for loss
 		jal check_game_over
-		beq v0, 0, _game_loop
+		j _game_loop #DEBUG
+		#beq v0, 0, _game_loop
 
 	jal show_game_over_message
 	exit
@@ -79,10 +80,12 @@ wait_for_game_start:
 		beq v0, 0, _loop # != 0 when key pressed
 	pop_state
 	jr ra
-	
+
+
 # ------------------------------------------------------------------------------------------------
 # ----------------------------------  Movement  --------------------------------------------------
 # ------------------------------------------------------------------------------------------------
+
 
 # moves the player legally based on arrow pressed arrow keys
 move_player:
@@ -90,43 +93,65 @@ move_player:
 	lw t0, player_dir
 	beq zero, t0, _return
 	
-	push_state s0, s1
+	push_state s0, s1, s2, s3
 	
 	# compute next position
 	lb a0, player_x
 	lb a1, player_y
 	jal compute_next_pos
-	move s0, v0
-	move s1, v1
+	move s0, v0 # new x-coord
+	move s1, v1 # new y-coord
 	
 	# check if (x,y) outside of grid
-	li t0, GRID_WIDTH
-	blt s0, 0, _invalid_move
-	bge s0, t0, _invalid_move
-	
-	li t0, GRID_HEIGHT
-	blt s1, 0, _invalid_move
-	bge s1, t0, _invalid_move
+	move a0, s0
+	move a1, s1
+	jal check_outside_grid
+	beq v0, 1, _skip_move
 	
 	# check if wall collision
-	la a0, level
-	move a1, s1 # y axis
-	move a2, s0 # x axis
-	li a3, GRID_WIDTH
-	jal matrix_element_address
-	lb t0, (v0)
-	
-	beq t0, 1, _invalid_move
+	move a0, s0
+	move a1, s1
+	jal check_wall_collision
+	beq v0, 1, _skip_move
 	
 	# check if block collision
 	move a0, s0
 	move a1, s1
 	jal check_block_collision
+	beq v0, 0, _move_forward
+		# block collision occurred		
 	
-	bne v0, 1, _move_forward
-		# block at location
-		j _invalid_move #TEMPORARY
-	
+		# compute block's new location if pushed
+		move a0, s0
+		move a1, s1
+		jal compute_next_pos
+		move s2, v0 # block's new x-coord
+		move s3, v1 # block's new y-coord
+		
+		# check if (x,y) outside of grid
+		move a0, s2
+		move a1, s3
+		jal check_outside_grid
+		beq v0, 1, _skip_move
+		
+		# check if wall collision
+		move a0, s2
+		move a1, s3
+		jal check_wall_collision
+		beq v0, 1, _skip_move
+		
+		# check if block in the path
+		move a0, s2
+		move a1, s3
+		jal check_block_collision
+		beq v0, 1, _skip_move
+		
+		# move block
+		move a0, s0
+		move a1, s1
+		move a2, s2
+		move a3, s3
+		jal move_block
 	
 	_move_forward: # legal move
 		# update player coordinates
@@ -137,30 +162,33 @@ move_player:
 		lw t0, moves_taken
 		increment t0
 		sw t0, moves_taken
-		
-		# reset player direction
-		sw zero, player_dir
 	
-	_invalid_move:
-	pop_state s0, s1
+	_skip_move:
+	# reset player direction
+	sw zero, player_dir
+	
+	pop_state s0, s1, s2, s3
 		
-	_return: # does not update position if jump
+	_return:
 	jr ra
 
-
-# a0 - x-coord of next location
-# a1 - y-coord of next location
-# returns v0 1 for true or 0 for false
-check_block_collision:
+# moves a block to a new location
+# a0 - x-coord of location
+# a1 - y-coord of location
+# a2 - new x-coord
+# a3 - new y-coord
+move_block:
 	push_state s0, s1, s2, s3, s4, s5
 	move s4, a0 #TODO change to s0/s1 and minimize saved regs
 	move s5, a1
+	move s6, a2
+	move s7, a3
 	
 	# determine number of blocks
 	la s0, array_of_blocks
 	lb s1, (s0) # number of blocks
 	
-	# draw each block
+	# update specific block
 	addi s0, s0, BYTE_SIZE
 	li s2, 0 # i
 	_loop:
@@ -171,18 +199,32 @@ check_block_collision:
 		move a0, s0
 		move a1, s3
 		jal array_element_address
-		lb t0, (v0) # x-coord
+		move t0, v0
+		lb t2, (t0) # x-coord
 		
-		addi v0, v0, BYTE_SIZE
-		lb t1, (v0) # y-coord
+		addi t1, v0, BYTE_SIZE
+		lb t3, (t1) # y-coord
 		
-		# check block collision
-		bne s4, t0, _next_block
-		bne s5, t1, _next_block
+		# check for block
+		bne s4, t2, _next_block
+		bne s5, t3, _next_block
 		
-			# collision happened
-			li v0, 1
-			j _return
+			# block at coordinates
+			sb s6, (t0)
+			sb s7, (t1)
+			
+			# check if landed on/ moved off of a target
+			move s1, t1 # save
+			
+			move a0, s6
+			move a1, s7
+			jal check_target_location
+			
+			# update block's is_on_target
+			addi t0, t1, BYTE_SIZE
+			sb v0, (t0)
+			
+			j _loop_end
 		
 		# check next block
 		_next_block:
@@ -190,12 +232,10 @@ check_block_collision:
 		j _loop
 	
 	_loop_end:
-	li v0, 0
-	
-	_return:
 	pop_state s0, s1, s2, s3, s4, s5
 	jr ra
-	
+
+
 # ------------------------------------------------------------------------------------------------
 # ----------------------------------  Drawing  ---------------------------------------------------
 # ------------------------------------------------------------------------------------------------
@@ -415,11 +455,9 @@ check_input:
 
 
 # checks if the game is over
-# returns v0 - 1 when game is over, 0 otherwise
+# returns 1 when game is over, 0 otherwise
 check_game_over:
 	push_state
-	
-	li v0, 0
 
 	# check user hit the maximum moves
 	lw t0, moves_taken
@@ -428,14 +466,169 @@ check_game_over:
 		j _return
 	_endif:
 
-	# update lost_game
+	# update game status
 	lw t0, lost_game
 	beq t0, 0, _return
+		# game over
 		li v0, 1
+		j _return
+	
+	# game continues
+	li v0, 0
 	
 	_return: # return v0
 	
 	pop_state
+	jr ra
+
+
+# check if (x,y) outside of grid
+# a0 - x-coord of location
+# a1 - y-coord of location
+# returns 1 if outside the grid or 0 otherwise
+check_outside_grid:
+	push_state
+	
+	# check if outside bounds
+	li t0, GRID_WIDTH
+	blt a0, 0, _invalid_move
+	bge a0, t0, _invalid_move
+	
+	li t0, GRID_HEIGHT
+	blt s1, 0, _invalid_move
+	bge s1, t0, _invalid_move
+	
+	j _valid_move
+	
+	_invalid_move:
+		li v0, 1
+		j _return
+	
+	_valid_move:
+		li v0, 0
+	
+	_return:
+	pop_state
+	jr ra
+
+
+# check if a wall is located at (x,y)
+# a0 - x-coord of location
+# a1 - y-coord of location
+# returns 1 if there is a wall, 0 otherwise
+check_wall_collision:
+	push_state
+	
+	move t0, a0
+	move t1, a1
+	
+	# find grid value
+	la a0, level
+	move a1, t1 # y axis
+	move a2, t0 # x axis
+	li a3, GRID_WIDTH
+	jal matrix_element_address
+	lb v0, (v0)
+	
+	# check if it is a wall
+	beq v0, 1, _wall
+		li v0, 0
+		j _return
+	
+	_wall:
+		li v0, 1
+	
+	_return:
+	pop_state
+	jr ra
+
+
+# check if a target is located at (x,y)
+# a0 - x-coord of location
+# a1 - y-coord of location
+# returns 1 if there is a target, 0 otherwise
+check_target_location:
+	push_state
+	
+	# level[i][j]
+	move a2, a0 # a1: y-coord, a2: x-coord
+	la a0, level
+	li a3, GRID_WIDTH
+	jal matrix_element_address
+	
+	#DEBUG
+	print_int a1
+	print_int a2
+	print_newline
+	print_int a0
+	print_newline
+	print_int v0
+	
+	lb v0, (v0)
+	
+	print_newline
+	print_int v0
+	
+	# check if it is a target
+	beq v0, 2, _target
+		li v0, 0
+		j _return
+	
+	_target:
+		li v0, 1
+	
+	_return:
+	pop_state
+	jr ra
+
+
+# check if a block is at the coordinates
+# a0 - x-coord of location
+# a1 - y-coord of location
+# returns 1 when there is a block at the coordinates, 0 otherwise
+check_block_collision:
+	push_state s0, s1, s2, s3, s4, s5
+	move s4, a0 #TODO change to s0/s1 and minimize saved regs
+	move s5, a1
+	
+	# determine number of blocks
+	la s0, array_of_blocks
+	lb s1, (s0) # number of blocks
+	
+	# draw each block
+	addi s0, s0, BYTE_SIZE
+	li s2, 0 # i
+	_loop:
+	bge s2, s1, _loop_end
+		mul s3, s2, 3 # block start located at [3i]
+		
+		# block x and y coordinates
+		move a0, s0
+		move a1, s3
+		jal array_element_address
+		lb t0, (v0) # x-coord
+		
+		addi v0, v0, BYTE_SIZE
+		lb t1, (v0) # y-coord
+		
+		# check for block
+		bne s4, t0, _next_block
+		bne s5, t1, _next_block
+		
+			# block at coordinates
+			li v0, 1
+			j _return
+		
+		# check next block
+		_next_block:
+		increment s2
+		j _loop
+	
+	_loop_end:
+	li v0, 0
+	
+	_return:
+	pop_state s0, s1, s2, s3, s4, s5
 	jr ra
 
 
